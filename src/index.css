@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "Inter", sans-serif;
+  --color-primary: #9146FF;
+  --color-neon-green: #CCFF00;
+  --color-neon-blue: #00FFCC;
+  --color-neon-pink: #FF00CC;
+  --color-neon-orange: #FF9900;
+  --color-neon-red: #FF3366;
+  --color-neon-cyan: #33CCFF;
+}
+
+body {
+  background-color: #0A0A0A;
+  color: #E4E3E0;
+  font-family: "Inter", sans-serif;
+}
+
+@keyframes gradient-xy {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-xy {
+  animation: gradient-xy 3s ease infinite;
+  background-size: 200% 200%;
+}
+
+.bg-gradient-highlight {
+  background: linear-gradient(90deg, #CCFF00, #00FFCC, #FF00CC, #CCFF00);
+  background-size: 300% 300%;
+}
+
+.hover-gradient-border {
+  position: relative;
+  border: 1px solid #222222;
+}
+
+.hover-gradient-border::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(90deg, #CCFF00, #00FFCC, #FF00CC, #CCFF00);
+  background-size: 300% 300%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.hover-gradient-border:hover {
+  border-color: transparent;
+}
+
+.hover-gradient-border:hover::after {
+  opacity: 1;
+  animation: gradient-xy 3s ease infinite;
+}
+
+/* Hide scrollbar for clean UI */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

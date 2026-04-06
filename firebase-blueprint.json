@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the Jam Rooms application.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's unique ID." },
+        "name": { "type": "string", "description": "The user's display name." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "bio": { "type": "string", "description": "The user's biography." },
+        "followers": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs following this user." },
+        "following": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs this user is following." },
+        "likedRooms": { "type": "array", "items": { "type": "string" }, "description": "List of room IDs liked by this user." },
+        "createdAt": { "type": "timestamp", "description": "When the user was created." }
+      },
+      "required": ["uid", "name", "email", "createdAt"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "A Jam Room containing tracks and chat.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The room's unique ID." },
+        "name": { "type": "string", "description": "The room's name." },
+        "isPrivate": { "type": "boolean", "description": "Whether the room is private." },
+        "shareCode": { "type": "string", "description": "The invite code for private rooms." },
+        "creatorId": { "type": "string", "description": "The UID of the user who created the room." },
+        "creatorName": { "type": "string", "description": "The name of the creator." },
+        "createdAt": { "type": "timestamp", "description": "When the room was created." },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Tags associated with the room." },
+        "likes": { "type": "number", "description": "Number of likes the room has received." },
+        "kickedUsers": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs who have been kicked from the room." },
+        "moderators": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs who are moderators." },
+        "isCollaborative": { "type": "boolean", "description": "Whether anyone can add tracks." },
+        "pinnedMessage": { "type": "string", "description": "A message pinned to the top of the chat." }
+      },
+      "required": ["id", "name", "isPrivate", "creatorId", "creatorName", "createdAt", "likes"]
+    },
+    "Presence": {
+      "title": "Presence",
+      "description": "Represents a user currently in a room.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user." },
+        "userName": { "type": "string", "description": "The name of the user." },
+        "joinedAt": { "type": "timestamp", "description": "When the user joined the room." }
+      },
+      "required": ["userId", "userName", "joinedAt"]
+    },
+    "Track": {
+      "title": "Track",
+      "description": "A music track added to a room.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The track's unique ID." },
+        "title": { "type": "string", "description": "The track's title." },
+        "artist": { "type": "string", "description": "The track's artist." },
+        "platform": { "type": "string", "description": "The platform the track is from (e.g., Spotify, YouTube)." },
+        "url": { "type": "string", "description": "The URL to the track." },
+        "addedBy": { "type": "string", "description": "The UID of the user who added the track." },
+        "addedAt": { "type": "timestamp", "description": "When the track was added." },
+        "order": { "type": "number", "description": "The order of the track in the room." }
+      },
+      "required": ["id", "title", "artist", "platform", "url", "addedBy", "addedAt", "order"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message in a room.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The message's unique ID." },
+        "userId": { "type": "string", "description": "The UID of the user who sent the message." },
+        "userName": { "type": "string", "description": "The name of the user who sent the message." },
+        "text": { "type": "string", "description": "The message content." },
+        "createdAt": { "type": "timestamp", "description": "When the message was sent." }
+      },
+      "required": ["id", "userId", "userName", "text", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "A direct message conversation between users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The conversation's unique ID." },
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs in the conversation." },
+        "lastMessage": { "type": "string", "description": "The last message sent." },
+        "updatedAt": { "type": "timestamp", "description": "When the conversation was last updated." }
+      },
+      "required": ["id", "participants", "updatedAt"]
+    },
+    "DirectMessage": {
+      "title": "DirectMessage",
+      "description": "A direct message in a conversation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The message's unique ID." },
+        "conversationId": { "type": "string", "description": "The ID of the conversation." },
+        "senderId": { "type": "string", "description": "The UID of the user who sent the message." },
+        "text": { "type": "string", "description": "The message content." },
+        "createdAt": { "type": "timestamp", "description": "When the message was sent." }
+      },
+      "required": ["id", "conversationId", "senderId", "text", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The notification's unique ID." },
+        "userId": { "type": "string", "description": "The UID of the user receiving the notification." },
+        "actorId": { "type": "string", "description": "The UID of the user who triggered the notification." },
+        "actorName": { "type": "string", "description": "The name of the user who triggered the notification." },
+        "type": { "type": "string", "enum": ["like", "message"], "description": "The type of notification." },
+        "targetId": { "type": "string", "description": "The ID of the related entity (room or conversation)." },
+        "targetName": { "type": "string", "description": "The name of the related entity (optional)." },
+        "read": { "type": "boolean", "description": "Whether the notification has been read." },
+        "createdAt": { "type": "timestamp", "description": "When the notification was created." }
+      },
+      "required": ["id", "userId", "actorId", "actorName", "type", "targetId", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "Stores user profiles."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "Room" },
+      "description": "Stores Jam Rooms."
+    },
+    "/rooms/{roomId}/tracks/{trackId}": {
+      "schema": { "$ref": "Track" },
+      "description": "Stores tracks within a room."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "Message" },
+      "description": "Stores chat messages within a room."
+    },
+    "/rooms/{roomId}/presence/{userId}": {
+      "schema": { "$ref": "Presence" },
+      "description": "Stores active users in a room."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "Conversation" },
+      "description": "Stores direct message conversations."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "DirectMessage" },
+      "description": "Stores direct messages within a conversation."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "Notification" },
+      "description": "Stores user notifications."
+    }
+  }
+}
