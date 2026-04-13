@@ -87,7 +87,7 @@ export default function Messages() {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
                   <h3 className="font-bold text-[#E4E3E0] truncate">{conv.otherUser.name}</h3>
-                  <span className="text-[10px] text-[#666666] flex-shrink-0 ml-2">
+                  <span className="text-[10px] text-[#666666] flex-shrink-0 ml-2 font-mono">
                     {conv.updatedAt?.toDate ? conv.updatedAt.toDate().toLocaleDateString() : ''}
                   </span>
                 </div>

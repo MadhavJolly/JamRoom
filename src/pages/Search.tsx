@@ -149,8 +149,13 @@ export default function Search() {
                       }}
                       className="text-[#666666] text-xs mt-1 font-medium hover:text-[#E4E3E0] transition-colors inline-block cursor-pointer"
                     >
-                      By @{room.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}
+                      By <span className="font-mono">@{room.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}</span>
                     </p>
+                    {room.description && (
+                      <p className="text-[#E4E3E0] text-sm mt-3 line-clamp-2">
+                        {room.description}
+                      </p>
+                    )}
                   </div>
                 </div>
                 
@@ -159,11 +164,11 @@ export default function Search() {
                     {room.tags?.map((tag: string) => {
                       const color = getChipColor(tag);
                       return (
-                        <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-md text-[10px] font-medium ${color.text}`}>#{tag}</span>
+                        <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                       );
                     })}
                     {(!room.tags || room.tags.length === 0) && (
-                      <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-md text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
+                      <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
@@ -203,7 +208,7 @@ export default function Search() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-2">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-[#666666] mb-2 font-mono">
                   Invite Code
                 </label>
                 <input 

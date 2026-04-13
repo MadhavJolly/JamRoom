@@ -7,6 +7,8 @@ import { auth, db } from "../firebase";
 
 import { getChipColor } from "../utils/colors";
 
+import { toast } from 'sonner';
+
 export default function Profile() {
   const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -21,6 +23,9 @@ export default function Profile() {
   // Edit Profile State
   const [editName, setEditName] = useState("");
   const [editBio, setEditBio] = useState("");
+  const [editNameColor, setEditNameColor] = useState("#E4E3E0");
+  const [editError, setEditError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -32,6 +37,7 @@ export default function Profile() {
           setUser(userData);
           setEditName(userData.name || "");
           setEditBio(userData.bio || "");
+          setEditNameColor(userData.nameColor || "#E4E3E0");
         }
       }
     };
@@ -112,9 +118,11 @@ export default function Profile() {
       if (isLiked) {
         await updateDoc(userRef, { likedRooms: arrayRemove(room.id) });
         await updateDoc(roomRef, { likes: increment(-1) });
+        toast.success("Room unliked");
       } else {
         await updateDoc(userRef, { likedRooms: arrayUnion(room.id) });
         await updateDoc(roomRef, { likes: increment(1) });
+        toast.success("Room liked");
         
         if (room.creatorId !== auth.currentUser.uid) {
           const notifRef = doc(collection(db, "notifications"));
@@ -133,6 +141,7 @@ export default function Profile() {
       }
     } catch (error) {
       console.error("Error toggling like:", error);
+      toast.error("Failed to update like status");
     }
   };
 
@@ -146,17 +155,29 @@ export default function Profile() {
   };
 
   const handleSaveProfile = async () => {
+    setEditError("");
+    if (!editName.trim()) {
+      setEditError("Display name is required.");
+      return;
+    }
     if (auth.currentUser) {
+      setIsSaving(true);
       try {
         const userRef = doc(db, "users", auth.currentUser.uid);
         await updateDoc(userRef, {
           name: editName,
-          bio: editBio
+          bio: editBio,
+          nameColor: editNameColor
         });
-        setUser({ ...user, name: editName, bio: editBio });
+        setUser({ ...user, name: editName, bio: editBio, nameColor: editNameColor });
         setIsEditProfileOpen(false);
+        toast.success("Profile updated successfully");
       } catch (error) {
         console.error("Error updating profile:", error);
+        setEditError("Failed to update profile.");
+        toast.error("Failed to update profile");
+      } finally {
+        setIsSaving(false);
       }
     }
   };
@@ -175,7 +196,7 @@ export default function Profile() {
             </div>
           </div>
           <h1 className="text-3xl font-bold tracking-tight">{user?.name || "Loading..."}</h1>
-          <p className="text-[#9146FF] text-sm font-medium mt-1">@{user?.name?.toLowerCase()?.replace(/\s+/g, '_') || "loading"}</p>
+          <p className="text-[#9146FF] text-sm font-medium mt-1 font-mono">@{user?.name?.toLowerCase()?.replace(/\s+/g, '_') || "loading"}</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -199,16 +220,16 @@ export default function Profile() {
 
       <div className="flex gap-6 mb-8">
         <div className="flex flex-col">
-          <span className="font-bold text-2xl tracking-tight">{user?.followers?.length || 0}</span>
-          <span className="text-[#666666] text-xs font-medium mt-1">Followers</span>
+          <span className="font-bold text-2xl tracking-tight font-mono">{user?.followers?.length || 0}</span>
+          <span className="text-[#666666] text-xs font-medium mt-1 font-mono uppercase tracking-wider">Followers</span>
         </div>
         <div className="flex flex-col">
-          <span className="font-bold text-2xl tracking-tight">{user?.following?.length || 0}</span>
-          <span className="text-[#666666] text-xs font-medium mt-1">Following</span>
+          <span className="font-bold text-2xl tracking-tight font-mono">{user?.following?.length || 0}</span>
+          <span className="text-[#666666] text-xs font-medium mt-1 font-mono uppercase tracking-wider">Following</span>
         </div>
         <div className="flex flex-col">
-          <span className="font-bold text-2xl tracking-tight">{createdRooms.length}</span>
-          <span className="text-[#666666] text-xs font-medium mt-1">Rooms</span>
+          <span className="font-bold text-2xl tracking-tight font-mono">{createdRooms.length}</span>
+          <span className="text-[#666666] text-xs font-medium mt-1 font-mono uppercase tracking-wider">Rooms</span>
         </div>
       </div>
 
@@ -250,6 +271,11 @@ export default function Profile() {
                       <div>
                         <h3 className="text-xl font-bold tracking-tight group-hover:text-[#9146FF] transition-colors">{room.name}</h3>
                         <p className="text-[#666666] text-xs mt-1 font-medium">{room.isPrivate ? 'Private Room' : 'Public Room'}</p>
+                        {room.description && (
+                          <p className="text-[#E4E3E0] text-sm mt-3 line-clamp-2">
+                            {room.description}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <button 
@@ -265,11 +291,11 @@ export default function Profile() {
                       {room.tags?.map((tag: string) => {
                         const color = getChipColor(tag);
                         return (
-                          <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-md text-[10px] font-medium ${color.text}`}>#{tag}</span>
+                          <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                         );
                       })}
                       {(!room.tags || room.tags.length === 0) && (
-                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-md text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
+                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
                       )}
                     </div>
                   </div>
@@ -302,8 +328,13 @@ export default function Profile() {
                           }}
                           className="text-[#666666] text-xs mt-1 font-medium hover:text-[#E4E3E0] transition-colors cursor-pointer inline-block"
                         >
-                          By @{room.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}
+                          By <span className="font-mono">@{room.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}</span>
                         </p>
+                        {room.description && (
+                          <p className="text-[#E4E3E0] text-sm mt-3 line-clamp-2">
+                            {room.description}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <button 
@@ -319,11 +350,11 @@ export default function Profile() {
                       {room.tags?.map((tag: string) => {
                         const color = getChipColor(tag);
                         return (
-                          <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-md text-[10px] font-medium ${color.text}`}>#{tag}</span>
+                          <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                         );
                       })}
                       {(!room.tags || room.tags.length === 0) && (
-                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-md text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
+                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
                       )}
                     </div>
                   </div>
@@ -352,6 +383,7 @@ export default function Profile() {
             </div>
 
             <div className="space-y-6">
+              {editError && <p className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded-lg">{editError}</p>}
               <div className="flex justify-center mb-6">
                 <div className="w-24 h-24 bg-[#222222] rounded-full border-2 border-[#9146FF] overflow-hidden relative group cursor-pointer">
                   <img src={`https://picsum.photos/seed/${auth.currentUser?.uid || 'user'}/200/200`} alt="Profile" className="w-full h-full object-cover opacity-50" />
@@ -362,17 +394,20 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Display Name</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Display Name</label>
                 <input 
                   type="text" 
                   value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
+                  onChange={(e) => {
+                    setEditName(e.target.value);
+                    if (editError) setEditError("");
+                  }}
+                  className={`w-full bg-[#111111] border ${editError ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
                 />
               </div>
 
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Bio</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Bio</label>
                 <textarea 
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
@@ -381,11 +416,27 @@ export default function Profile() {
                 />
               </div>
 
+              <div>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Chat Name Color</label>
+                <div className="flex items-center gap-4 bg-[#111111] border border-[#222222] p-4 rounded-xl">
+                  <input 
+                    type="color" 
+                    value={editNameColor}
+                    onChange={(e) => setEditNameColor(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer bg-transparent border-none p-0"
+                  />
+                  <span className="text-[#E4E3E0] font-medium" style={{ color: editNameColor }}>
+                    {editName}
+                  </span>
+                </div>
+              </div>
+
               <button 
                 onClick={handleSaveProfile}
-                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mt-4"
+                disabled={isSaving}
+                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mt-4 disabled:opacity-50"
               >
-                Save Changes
+                {isSaving ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
@@ -405,7 +456,7 @@ export default function Profile() {
 
             <div className="space-y-8">
               <div>
-                <h3 className="text-xs font-medium text-[#666666] uppercase tracking-wider mb-4">Account</h3>
+                <h3 className="text-xs font-medium text-[#666666] uppercase tracking-wider mb-4 font-mono">Account</h3>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-[#222222] pb-4">
                     <span className="text-sm font-medium">Email</span>
@@ -419,7 +470,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <h3 className="text-xs font-medium text-[#666666] uppercase tracking-wider mb-4">Appearance</h3>
+                <h3 className="text-xs font-medium text-[#666666] uppercase tracking-wider mb-4 font-mono">Appearance</h3>
                 <div className="flex gap-2">
                   <button className="flex-1 py-2.5 rounded-xl border border-[#9146FF] text-[#9146FF] bg-[#9146FF]/10 text-xs font-medium">Dark</button>
                   <button className="flex-1 py-2.5 rounded-xl border border-[#222222] text-[#666666] hover:border-[#E4E3E0] bg-[#111111] text-xs font-medium">Pitch Black</button>

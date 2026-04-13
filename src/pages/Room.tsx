@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Share2, Plus, Search as SearchIcon, X, Check, Disc3, MoreVertical, ExternalLink, Trash2, Settings, GripVertical, MessageSquare, Send, Copy } from "lucide-react";
+import { ArrowLeft, Play, Share2, Plus, Search as SearchIcon, X, Check, Disc3, MoreVertical, ExternalLink, Trash2, Settings, GripVertical, MessageSquare, Send, Copy, Heart } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { collection, doc, getDoc, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, arrayUnion, arrayRemove, getDocs, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useRoomContext } from "../RoomContext";
 
@@ -19,6 +19,7 @@ interface Track {
   addedAt?: any;
   order: number;
   image?: string;
+  reactions?: Record<string, string[]>;
 }
 
 interface Message {
@@ -47,7 +48,7 @@ function formatTimeAgo(timestamp: any) {
   return Math.floor(seconds) + "s";
 }
 
-const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, isCreator: boolean }> = ({ track, onSelect, isCreator }) => {
+const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, isCreator: boolean, roomId: string }> = ({ track, onSelect, isCreator, roomId }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id });
 
   const style = {
@@ -70,7 +71,7 @@ const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, 
       
       <div 
         onClick={() => onSelect(track)}
-        className="w-12 h-12 bg-[#222222] rounded-md flex-shrink-0 relative flex items-center justify-center overflow-hidden cursor-pointer"
+        className="w-12 h-12 bg-[#222222] rounded-xl flex-shrink-0 relative flex items-center justify-center overflow-hidden cursor-pointer"
       >
         {track.image ? (
           <img src={track.image} alt="Album art" className="absolute inset-0 w-full h-full object-cover opacity-60" referrerPolicy="no-referrer" />
@@ -87,7 +88,73 @@ const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, 
         <p className="text-[#666666] text-xs truncate mt-0.5">{track.artist}</p>
       </div>
       
-      <div className="flex items-center gap-3 mr-2">
+      <div className="flex items-center gap-3 mr-2 relative">
+        {/* Active Reactions */}
+        <div className="flex items-center gap-1">
+          {['🔥', '❤️', '👀', '🗑️'].map(emoji => {
+            const count = track.reactions?.[emoji]?.length || 0;
+            const hasReacted = auth.currentUser && track.reactions?.[emoji]?.includes(auth.currentUser.uid);
+            if (count === 0) return null;
+            return (
+              <button
+                key={emoji}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!auth.currentUser) return;
+                  const trackRef = doc(db, "rooms", roomId, "tracks", track.id);
+                  if (hasReacted) {
+                    updateDoc(trackRef, {
+                      [`reactions.${emoji}`]: arrayRemove(auth.currentUser.uid)
+                    });
+                  } else {
+                    updateDoc(trackRef, {
+                      [`reactions.${emoji}`]: arrayUnion(auth.currentUser.uid)
+                    });
+                  }
+                }}
+                className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 transition-colors ${hasReacted ? 'bg-[#222222] border border-[#9146FF]' : 'bg-[#111111] border border-[#222222] hover:bg-[#222222]'}`}
+              >
+                <span>{emoji}</span>
+                <span className="text-[#E4E3E0] font-mono">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Floating Reaction Bar (appears on hover) */}
+        <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[#111111]/80 backdrop-blur-md border border-[#333333] p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 pointer-events-none group-hover:pointer-events-auto z-20 shadow-xl">
+          {['🔥', '❤️', '👀', '🗑️'].map(emoji => {
+            const hasReacted = auth.currentUser && track.reactions?.[emoji]?.includes(auth.currentUser.uid);
+            return (
+              <button
+                key={`picker-${emoji}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!auth.currentUser) return;
+                  const trackRef = doc(db, "rooms", roomId, "tracks", track.id);
+                  if (hasReacted) {
+                    updateDoc(trackRef, {
+                      [`reactions.${emoji}`]: arrayRemove(auth.currentUser.uid)
+                    });
+                  } else {
+                    updateDoc(trackRef, {
+                      [`reactions.${emoji}`]: arrayUnion(auth.currentUser.uid)
+                    });
+                  }
+                }}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm hover:scale-125 transition-transform ${hasReacted ? 'bg-[#333333]' : 'hover:bg-[#222222]'}`}
+              >
+                {emoji}
+              </button>
+            );
+          })}
+        </div>
+
+        {track.platform && (
+          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-xl ${getChipColor(track.platform).bg} ${getChipColor(track.platform).text}`}>
+            {track.platform}
+          </span>
+        )}
         <div className="flex items-center gap-2">
           {track.addedAt && (
             <span className="text-[10px] text-[#666666] font-medium hidden sm:inline-block">
@@ -128,6 +195,7 @@ const renderMessageText = (text: string) => {
 };
 
 import { getChipColor } from '../utils/colors';
+import { toast } from 'sonner';
 
 export default function Room() {
   const { id } = useParams();
@@ -146,16 +214,20 @@ export default function Room() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [addedTracks, setAddedTracks] = useState<string[]>([]);
   const [isFetchingLink, setIsFetchingLink] = useState(false);
+  const [isAddingTrack, setIsAddingTrack] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(true);
   
   // New Modals State
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [isRoomSettingsOpen, setIsRoomSettingsOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [showToast, setShowToast] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedRoomLink, setCopiedRoomLink] = useState(false);
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   const [roomTracks, setRoomTracks] = useState<Track[]>([]);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const { addMinimizedRoom } = useRoomContext();
 
   const handleBack = () => {
@@ -197,12 +269,48 @@ export default function Room() {
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const tracksEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = (ref: React.RefObject<HTMLDivElement>) => {
+    ref.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      scrollToBottom(messagesEndRef);
+    } else if (activeTab === 'tracks') {
+      scrollToBottom(tracksEndRef);
+    }
+  }, [messages, roomTracks, activeTab]);
 
   // Presence State
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
   useEffect(() => {
+    if (auth.currentUser && id && id !== 'new' && currentUserProfile) {
+      const presenceRef = doc(db, "rooms", id, "presence", auth.currentUser.uid);
+      setDoc(presenceRef, {
+        userId: auth.currentUser.uid,
+        userName: currentUserProfile.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Anonymous",
+        nameColor: currentUserProfile.nameColor || "#E4E3E0",
+        joinedAt: serverTimestamp()
+      }, { merge: true }).catch(console.error);
+    }
+  }, [currentUserProfile, id]);
+
+  useEffect(() => {
     if (!id || id === 'new') return;
+
+    // Fetch current user profile
+    if (auth.currentUser) {
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      getDoc(userRef).then(snap => {
+        if (snap.exists()) {
+          setCurrentUserProfile(snap.data());
+        }
+      });
+    }
 
     const roomRef = doc(db, "rooms", id);
     const unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
@@ -233,13 +341,6 @@ export default function Room() {
     // Presence Logic
     let unsubscribePresence = () => {};
     if (auth.currentUser) {
-      const presenceRef = doc(db, "rooms", id, "presence", auth.currentUser.uid);
-      setDoc(presenceRef, {
-        userId: auth.currentUser.uid,
-        userName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Anonymous",
-        joinedAt: serverTimestamp()
-      }).catch(console.error);
-
       const presenceCollection = collection(db, "rooms", id, "presence");
       unsubscribePresence = onSnapshot(presenceCollection, (snapshot) => {
         const users: any[] = [];
@@ -312,6 +413,7 @@ export default function Room() {
     if (!id || id === 'new' || !auth.currentUser) return;
     
     if (!addedTracks.includes(track.url)) {
+      setIsAddingTrack(true);
       const newTrackId = Date.now().toString();
       const trackRef = doc(db, "rooms", id, "tracks", newTrackId);
       
@@ -323,9 +425,10 @@ export default function Room() {
         url: track.url,
         image: track.image || "",
         addedBy: auth.currentUser.uid,
-        addedByName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "User",
+        addedByName: currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "User",
         addedAt: serverTimestamp(),
-        order: -1 // Will be placed at the top
+        order: -1, // Will be placed at the top
+        reactions: {}
       };
       
       try {
@@ -336,9 +439,27 @@ export default function Room() {
           return updateDoc(tRef, { order: index });
         });
         await Promise.all(batch);
+        
+        // Add system message to chat
+        const messageId = Date.now().toString();
+        const messageRef = doc(db, "rooms", id, "messages", messageId);
+        await setDoc(messageRef, {
+          id: messageId,
+          userId: "system",
+          userName: "System",
+          text: `${currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "User"} added a track: ${track.title} by ${track.artist}`,
+          isSystem: true,
+          createdAt: serverTimestamp()
+        });
+        toast.success("Track added successfully!");
       } catch (error) {
         console.error("Error adding track:", error);
+        toast.error("Failed to add track.");
+      } finally {
+        setIsAddingTrack(false);
       }
+    } else {
+      toast.error("Track already added to this room.");
     }
   };
 
@@ -347,8 +468,10 @@ export default function Room() {
       try {
         await deleteDoc(doc(db, "rooms", id, "tracks", selectedTrack.id));
         setSelectedTrack(null);
+        toast.success("Track removed");
       } catch (error) {
         console.error("Error removing track:", error);
+        toast.error("Failed to remove track");
       }
     }
   };
@@ -387,9 +510,11 @@ export default function Room() {
     if (id && id !== 'new') {
       try {
         await deleteDoc(doc(db, "rooms", id));
+        toast.success("Room deleted successfully");
         navigate('/');
       } catch (error) {
         console.error("Error deleting room:", error);
+        toast.error("Failed to delete room");
       }
     }
   };
@@ -398,10 +523,9 @@ export default function Room() {
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopiedRoomLink(true);
-      setShowToast(true);
+      toast.success("Link copied to clipboard!");
       setTimeout(() => {
         setCopiedRoomLink(false);
-        setShowToast(false);
       }, 2000);
     } catch (err) {
       const textArea = document.createElement("textarea");
@@ -411,13 +535,13 @@ export default function Room() {
       try {
         document.execCommand('copy');
         setCopiedRoomLink(true);
-        setShowToast(true);
+        toast.success("Link copied to clipboard!");
         setTimeout(() => {
           setCopiedRoomLink(false);
-          setShowToast(false);
         }, 2000);
       } catch (e) {
         console.error("Copy failed", e);
+        toast.error("Failed to copy link");
       }
       document.body.removeChild(textArea);
     }
@@ -566,7 +690,8 @@ export default function Room() {
       await setDoc(messageRef, {
         id: messageId,
         userId: auth.currentUser.uid,
-        userName: auth.currentUser.displayName || "User",
+        userName: currentUserProfile?.name || auth.currentUser.displayName || "User",
+        nameColor: currentUserProfile?.nameColor || "#E4E3E0",
         text: newMessage,
         createdAt: serverTimestamp()
       });
@@ -592,7 +717,10 @@ export default function Room() {
             </button>
             {isCreator && (
               <button 
-                onClick={() => setIsRoomSettingsOpen(true)}
+                onClick={() => {
+                  setEditTags(room?.tags || []);
+                  setIsRoomSettingsOpen(true);
+                }}
                 className="p-2 border border-[#222222] rounded-full hover:border-[#E4E3E0] transition-colors hover:bg-[#111111]"
               >
                 <Settings size={18} />
@@ -619,7 +747,7 @@ export default function Room() {
             onClick={() => navigate(`/user/${room?.creatorId}`)}
             className="text-[#666666] text-sm inline-block hover:text-[#E4E3E0] transition-colors cursor-pointer"
           >
-            Curated by @{room?.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}
+            Curated by <span className="font-mono">@{room?.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}</span>
           </p>
         </div>
         
@@ -630,8 +758,8 @@ export default function Room() {
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="flex gap-4 mt-6 border-b border-[#222222]">
+        {/* Tabs (Mobile Only) */}
+        <div className="flex lg:hidden gap-4 mt-6 border-b border-[#222222]">
           <button 
             onClick={() => setActiveTab('tracks')}
             className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'tracks' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
@@ -658,41 +786,67 @@ export default function Room() {
         </div>
       </header>
 
-      <div className="p-4 flex-1 flex flex-col">
-        {activeTab === 'tracks' ? (
-          <>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-sm font-medium text-[#666666]">{roomTracks.length} Tracks</h2>
-            </div>
+      <div className="p-4 flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden relative">
+        {/* Tracks Section */}
+        <div className={`flex-1 flex flex-col ${activeTab !== 'tracks' ? 'hidden lg:flex' : 'flex'} overflow-hidden relative`}>
+          <div className="flex items-center justify-between mb-6 flex-shrink-0">
+            <h2 className="text-sm font-medium text-[#666666]">{roomTracks.length} Tracks</h2>
+            <button 
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className="hidden lg:flex items-center gap-2 text-sm text-[#666666] hover:text-[#E4E3E0] transition-colors"
+            >
+              <MessageSquare size={16} />
+              {isChatOpen ? 'Hide Chat' : 'Show Chat'}
+            </button>
+          </div>
 
-            <div className="space-y-3 pb-24 md:pb-6">
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={roomTracks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                  {roomTracks.map((track: Track) => (
-                    <SortableTrackItem 
-                      key={track.id} 
-                      track={track} 
-                      onSelect={setSelectedTrack} 
-                      isCreator={isCreator} 
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-              
-              {roomTracks.length === 0 && (
-                <div className="text-center py-10 text-[#666666]">
-                  <p className="text-sm font-medium">No tracks added yet.</p>
-                  <p className="text-xs mt-1">Click the button below to start adding music.</p>
-                </div>
-              )}
+          <div className="flex-1 overflow-y-auto space-y-3 pb-24 lg:pb-24">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={roomTracks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                {roomTracks.map((track: Track) => (
+                  <SortableTrackItem 
+                    key={track.id} 
+                    track={track} 
+                    onSelect={setSelectedTrack} 
+                    isCreator={isCreator} 
+                    roomId={id!}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+            <div ref={tracksEndRef} />
+            
+            {roomTracks.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-[#222222] rounded-2xl m-4">
+                <Disc3 size={48} className="text-[#666666] mb-4" />
+                <h3 className="text-xl font-bold text-[#E4E3E0] mb-2">The room is quiet</h3>
+                <p className="text-[#666666] mb-6 max-w-md">Drop the first track to get the party started. Click the button below to add music.</p>
+              </div>
+            )}
+          </div>
+
+          {canAddTrack && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent pt-12 z-20">
+              <button 
+                onClick={() => setIsAddTrackOpen(true)}
+                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#772ce8] transition-colors shadow-[0_0_20px_rgba(145,70,255,0.15)]"
+              >
+                <Plus size={20} /> Add Track
+              </button>
             </div>
-          </>
-        ) : activeTab === 'chat' ? (
-          <div className="flex-1 flex flex-col pb-24 md:pb-6">
+          )}
+        </div>
+
+        {/* Chat Section */}
+        <div className={`w-full lg:w-96 flex flex-col border-l-0 lg:border-l border-[#222222] lg:pl-6 ${(!isChatOpen && activeTab !== 'chat') ? 'hidden' : (activeTab === 'chat' ? 'flex' : 'hidden lg:flex')} overflow-hidden relative`}>
+          <div className="flex items-center justify-between mb-4 hidden lg:flex flex-shrink-0">
+            <h2 className="text-sm font-medium text-[#666666]">Chat ({messages.length})</h2>
+          </div>
+          <div className="flex-1 flex flex-col pb-24 lg:pb-24 overflow-hidden">
             {room?.pinnedMessage && (
-              <div className="bg-[#9146FF]/10 border border-[#9146FF]/30 rounded-xl p-3 mb-4 flex items-start gap-3">
+              <div className="bg-[#9146FF]/10 border border-[#9146FF]/30 rounded-xl p-3 mb-4 flex items-start gap-3 flex-shrink-0">
                 <div className="mt-0.5">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-[#9146FF] bg-[#9146FF]/20 px-1.5 py-0.5 rounded">Pinned</span>
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[#9146FF] bg-[#9146FF]/20 px-1.5 py-0.5 rounded font-mono">Pinned</span>
                 </div>
                 <p className="text-sm text-[#E4E3E0] flex-1">{renderMessageText(room.pinnedMessage)}</p>
                 {canModerate && (
@@ -711,57 +865,103 @@ export default function Room() {
                 )}
               </div>
             )}
-            <div className="flex-1 space-y-4 overflow-y-auto mb-4">
-              {messages.map((msg) => (
-                <div key={msg.id} className="flex gap-3 group">
-                  <div className="w-8 h-8 rounded-full bg-[#222222] flex-shrink-0 overflow-hidden cursor-pointer" onClick={() => navigate(`/user/${msg.userId}`)}>
-                    <img src={`https://picsum.photos/seed/${msg.userId}/100/100`} alt={msg.userName} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-bold text-sm text-[#E4E3E0] cursor-pointer hover:underline" onClick={() => navigate(`/user/${msg.userId}`)}>@{msg.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}</span>
-                      <span className="text-[10px] text-[#666666]">
-                        {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
-                      </span>
+            <div className="flex-1 space-y-4 overflow-y-auto mb-4 pr-2">
+              {messages.map((msg) => {
+                if (msg.isSystem) {
+                  return (
+                    <div key={msg.id} className="flex justify-center my-2">
+                      <div className="bg-[#111111] border border-[#222222] rounded-full px-4 py-1.5 flex items-center gap-2">
+                        <span className="text-xs text-[#9146FF] font-medium">System</span>
+                        <span className="text-xs text-[#666666]">•</span>
+                        <span className="text-xs text-[#E4E3E0]">{msg.text}</span>
+                        <span className="text-[10px] text-[#666666] ml-2 font-mono">
+                          {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-sm text-[#E4E3E0] mt-0.5 leading-relaxed">{renderMessageText(msg.text)}</p>
-                  </div>
-                  {canModerate && (
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                      <button 
-                        onClick={async () => {
-                          try {
-                            await updateDoc(doc(db, "rooms", id!), { pinnedMessage: msg.text });
-                          } catch (e) {
-                            console.error("Error pinning", e);
-                          }
-                        }}
-                        className="text-[#666666] hover:text-[#9146FF] text-xs font-medium"
-                      >
-                        Pin
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          if (window.confirm("Delete this message?")) {
+                  );
+                }
+                
+                return (
+                  <div key={msg.id} className="flex gap-3 group">
+                    <div className="w-8 h-8 rounded-full bg-[#222222] flex-shrink-0 overflow-hidden cursor-pointer" onClick={() => navigate(`/user/${msg.userId}`)}>
+                      <img src={`https://picsum.photos/seed/${msg.userId}/100/100`} alt={msg.userName} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span 
+                          className="font-bold text-sm cursor-pointer hover:underline font-mono" 
+                          style={{ color: msg.nameColor || '#E4E3E0' }}
+                          onClick={() => navigate(`/user/${msg.userId}`)}
+                        >
+                          @{msg.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}
+                        </span>
+                        <span className="text-[10px] text-[#666666] font-mono">
+                          {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-[#E4E3E0] mt-0.5 leading-relaxed">{renderMessageText(msg.text)}</p>
+                    </div>
+                    {canModerate && (
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                        <button 
+                          onClick={async () => {
                             try {
-                              await deleteDoc(doc(db, "rooms", id!, "messages", msg.id));
+                              await updateDoc(doc(db, "rooms", id!), { pinnedMessage: msg.text });
                             } catch (e) {
-                              console.error("Error deleting", e);
+                              console.error("Error pinning", e);
                             }
-                          }
-                        }}
-                        className="text-[#666666] hover:text-red-500 text-xs font-medium"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                          }}
+                          className="text-[#666666] hover:text-[#9146FF] text-xs font-medium"
+                        >
+                          Pin
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            if (window.confirm("Delete this message?")) {
+                              try {
+                                await deleteDoc(doc(db, "rooms", id!, "messages", msg.id));
+                              } catch (e) {
+                                console.error("Error deleting", e);
+                              }
+                            }
+                          }}
+                          className="text-[#666666] hover:text-red-500 text-xs font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
             </div>
           </div>
-        ) : (
-          <div className="flex-1 flex flex-col pb-24 md:pb-6">
+
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-[#0A0A0A] border-t border-[#222222] z-20 lg:pl-6">
+            <form onSubmit={handleSendMessage} className="flex gap-2">
+              <input 
+                type="text" 
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Say something..." 
+                className="flex-1 bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3.5 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors text-sm"
+              />
+              <button 
+                type="submit"
+                disabled={!newMessage.trim()}
+                className="w-12 h-12 flex items-center justify-center bg-[#9146FF] text-white rounded-xl disabled:opacity-50 hover:bg-[#772ce8] transition-colors flex-shrink-0"
+              >
+                <Send size={20} />
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Users Section */}
+        <div className={`w-full lg:w-96 flex flex-col border-l-0 lg:border-l border-[#222222] lg:pl-6 ${activeTab === 'users' ? 'flex' : 'hidden'} overflow-hidden`}>
+          <div className="flex-1 flex flex-col pb-24 md:pb-6 overflow-y-auto">
             <div className="space-y-4">
               {activeUsers.map((user) => (
                 <div key={user.userId} className="flex items-center justify-between p-3 bg-[#111111] rounded-xl border border-[#222222]">
@@ -770,13 +970,13 @@ export default function Room() {
                       <img src={`https://picsum.photos/seed/${user.userId}/100/100`} alt={user.userName} className="w-full h-full object-cover" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm text-[#E4E3E0]">@{user.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}</p>
+                      <p className="font-bold text-sm font-mono" style={{ color: user.nameColor || '#E4E3E0' }}>@{user.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}</p>
                       <div className="flex gap-2 mt-0.5">
                         {user.userId === room?.creatorId && (
-                          <span className="text-[10px] text-[#9146FF] font-medium uppercase tracking-wider">Creator</span>
+                          <span className="text-[10px] text-[#9146FF] font-medium uppercase tracking-wider font-mono">Creator</span>
                         )}
                         {room?.moderators?.includes(user.userId) && (
-                          <span className="text-[10px] text-[#00CCFF] font-medium uppercase tracking-wider">Mod</span>
+                          <span className="text-[10px] text-[#00CCFF] font-medium uppercase tracking-wider font-mono">Mod</span>
                         )}
                       </div>
                     </div>
@@ -796,7 +996,7 @@ export default function Room() {
                             console.error("Error toggling mod:", error);
                           }
                         }}
-                        className="px-3 py-1.5 bg-[#222222] text-[#E4E3E0] text-xs font-bold rounded-md hover:bg-[#333333] transition-colors"
+                        className="px-3 py-1.5 bg-[#222222] text-[#E4E3E0] text-xs font-bold rounded-xl hover:bg-[#333333] transition-colors"
                       >
                         {room?.moderators?.includes(user.userId) ? 'Unmod' : 'Mod'}
                       </button>
@@ -815,7 +1015,7 @@ export default function Room() {
                             }
                           }
                         }}
-                        className="px-3 py-1.5 bg-red-500/10 text-red-500 text-xs font-bold rounded-md hover:bg-red-500/20 transition-colors"
+                        className="px-3 py-1.5 bg-red-500/10 text-red-500 text-xs font-bold rounded-xl hover:bg-red-500/20 transition-colors"
                       >
                         Kick
                       </button>
@@ -825,40 +1025,8 @@ export default function Room() {
               ))}
             </div>
           </div>
-        )}
-      </div>
-
-      {activeTab === 'tracks' ? (
-        canAddTrack && (
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent pt-12 pb-6 z-20">
-            <button 
-              onClick={() => setIsAddTrackOpen(true)}
-              className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#772ce8] transition-colors shadow-[0_0_20px_rgba(145,70,255,0.15)]"
-            >
-              <Plus size={20} /> Add Track
-            </button>
-          </div>
-        )
-      ) : activeTab === 'chat' ? (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#0A0A0A] border-t border-[#222222] z-20">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
-            <input 
-              type="text" 
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Say something..." 
-              className="flex-1 bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3.5 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors text-sm"
-            />
-            <button 
-              type="submit"
-              disabled={!newMessage.trim()}
-              className="w-12 h-12 flex items-center justify-center bg-[#9146FF] text-white rounded-xl disabled:opacity-50 hover:bg-[#772ce8] transition-colors flex-shrink-0"
-            >
-              <Send size={20} />
-            </button>
-          </form>
         </div>
-      ) : null}
+      </div>
 
       {/* Share Modal */}
       {isShareModalOpen && (
@@ -889,22 +1057,15 @@ export default function Room() {
         </div>
       )}
 
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#9146FF] text-white px-4 py-2 rounded-full font-bold text-sm shadow-lg animate-in slide-in-from-bottom-5 fade-in z-50">
-          Link copied to clipboard!
-        </div>
-      )}
-
       {/* Track Actions Modal */}
       {selectedTrack !== null && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200" onClick={() => setSelectedTrack(null)}>
           <div className="bg-[#0A0A0A] border border-[#222222] w-full max-w-md p-6 rounded-t-xl sm:rounded-xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 duration-200" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#222222]">
               {selectedTrack.image ? (
-                <img src={selectedTrack.image} alt="Album art" className="w-16 h-16 rounded-md object-cover" referrerPolicy="no-referrer" />
+                <img src={selectedTrack.image} alt="Album art" className="w-16 h-16 rounded-xl object-cover" referrerPolicy="no-referrer" />
               ) : (
-                <img src={`https://picsum.photos/seed/track${selectedTrack.id}/100/100`} alt="Album art" className="w-16 h-16 rounded-md object-cover" referrerPolicy="no-referrer" />
+                <img src={`https://picsum.photos/seed/track${selectedTrack.id}/100/100`} alt="Album art" className="w-16 h-16 rounded-xl object-cover" referrerPolicy="no-referrer" />
               )}
               <div>
                 <h3 className="font-bold text-lg">{selectedTrack.title}</h3>
@@ -913,6 +1074,37 @@ export default function Room() {
             </div>
             
             <div className="space-y-2">
+              <button 
+                onClick={async () => {
+                  if (!auth.currentUser) return;
+                  try {
+                    const userRef = doc(db, "users", auth.currentUser.uid);
+                    const trackKey = `${id}_${selectedTrack.id}`;
+                    if (currentUserProfile?.likedTracks?.includes(trackKey)) {
+                      await updateDoc(userRef, { likedTracks: arrayRemove(trackKey) });
+                      setCurrentUserProfile({
+                        ...currentUserProfile,
+                        likedTracks: currentUserProfile.likedTracks.filter((k: string) => k !== trackKey)
+                      });
+                      toast.success("Track unliked");
+                    } else {
+                      await updateDoc(userRef, { likedTracks: arrayUnion(trackKey) });
+                      setCurrentUserProfile({
+                        ...currentUserProfile,
+                        likedTracks: [...(currentUserProfile.likedTracks || []), trackKey]
+                      });
+                      toast.success("Track liked");
+                    }
+                  } catch (error) {
+                    console.error("Error liking track:", error);
+                    toast.error("Failed to update like status");
+                  }
+                }}
+                className="w-full flex items-center gap-3 p-4 hover:bg-[#111111] rounded-xl transition-colors text-left"
+              >
+                <Heart size={20} className={currentUserProfile?.likedTracks?.includes(`${id}_${selectedTrack.id}`) ? "fill-[#9146FF] text-[#9146FF]" : "text-[#E4E3E0]"} />
+                <span className="font-medium">{currentUserProfile?.likedTracks?.includes(`${id}_${selectedTrack.id}`) ? "Unlike Track" : "Like Track"}</span>
+              </button>
               <a href={selectedTrack.url} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-3 p-4 hover:bg-[#111111] rounded-xl transition-colors text-left">
                 <ExternalLink size={20} className="text-[#9146FF]" />
                 <span className="font-medium">Open in {selectedTrack.platform}</span>
@@ -948,7 +1140,7 @@ export default function Room() {
 
             <div className="space-y-6">
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Edit Name</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Edit Name</label>
                 <input 
                   type="text" 
                   defaultValue={room?.name || ""}
@@ -958,7 +1150,7 @@ export default function Room() {
               </div>
 
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Description</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Description</label>
                 <textarea 
                   defaultValue={room?.description || ""}
                   onChange={(e) => updateDoc(doc(db, "rooms", id!), { description: e.target.value })}
@@ -967,9 +1159,85 @@ export default function Room() {
                 />
               </div>
 
+              <div>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Genre Tags (Max 5)</label>
+                <div className="bg-[#111111] border border-[#222222] rounded-xl p-2 focus-within:border-[#9146FF] transition-colors">
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {editTags.map(tag => (
+                      <span key={tag} className="px-2.5 py-1 bg-[#222222] rounded-xl text-xs font-medium text-[#E4E3E0] flex items-center gap-1">
+                        #{tag}
+                        <button onClick={() => {
+                          const newTags = editTags.filter(t => t !== tag);
+                          setEditTags(newTags);
+                          updateDoc(doc(db, "rooms", id!), { tags: newTags });
+                        }} className="hover:text-[#9146FF]"><X size={12} /></button>
+                      </span>
+                    ))}
+                  </div>
+                  <input 
+                    type="text" 
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && tagInput.trim()) {
+                        e.preventDefault();
+                        const newTag = tagInput.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                        if (newTag && editTags.length < 5 && !editTags.includes(newTag)) {
+                          const newTags = [...editTags, newTag];
+                          setEditTags(newTags);
+                          setTagInput("");
+                          updateDoc(doc(db, "rooms", id!), { tags: newTags });
+                        }
+                      }
+                    }}
+                    disabled={editTags.length >= 5}
+                    placeholder={editTags.length >= 5 ? "Max tags reached" : "Type a genre and press Enter..."} 
+                    className="w-full bg-transparent text-[#E4E3E0] p-2 text-sm focus:outline-none disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-[#222222]">
+                <button 
+                  onClick={async () => {
+                    if (window.confirm("Are you sure you want to clear the chat? This cannot be undone.")) {
+                      try {
+                        const messagesRef = collection(db, "rooms", id!, "messages");
+                        const messagesSnapshot = await getDocs(messagesRef);
+                        const batch = writeBatch(db);
+                        messagesSnapshot.docs.forEach((doc) => {
+                          batch.delete(doc.ref);
+                        });
+                        await batch.commit();
+                        
+                        // Add system message indicating chat was cleared
+                        const messageId = Date.now().toString();
+                        await setDoc(doc(db, "rooms", id!, "messages", messageId), {
+                          id: messageId,
+                          userId: "system",
+                          userName: "System",
+                          text: "Chat history was cleared by the room creator.",
+                          isSystem: true,
+                          createdAt: serverTimestamp()
+                        });
+                        
+                        setIsRoomSettingsOpen(false);
+                        toast.success("Chat history cleared");
+                      } catch (error) {
+                        console.error("Error clearing chat:", error);
+                        toast.error("Failed to clear chat");
+                      }
+                    }
+                  }}
+                  className="w-full border border-[#222222] text-[#E4E3E0] font-bold py-4 rounded-xl hover:bg-[#111111] transition-colors flex items-center justify-center gap-2"
+                >
+                  <MessageSquare size={20} /> Clear Chat
+                </button>
+              </div>
+
               <button 
                 onClick={handleDeleteRoom}
-                className="w-full border border-red-500/50 text-red-500 font-bold py-4 rounded-xl hover:bg-red-500/10 transition-colors mt-8 flex items-center justify-center gap-2"
+                className="w-full border border-red-500/50 text-red-500 font-bold py-4 rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
               >
                 <Trash2 size={20} /> Delete Room
               </button>
@@ -1032,7 +1300,7 @@ export default function Room() {
                   const color = getChipColor(track.platform);
                   return (
                     <div key={track.id} className="flex items-center gap-3 p-2 hover:bg-[#111111] rounded-xl transition-colors group">
-                      <div className="w-12 h-12 bg-[#222222] rounded-md flex-shrink-0 overflow-hidden">
+                      <div className="w-12 h-12 bg-[#222222] rounded-xl flex-shrink-0 overflow-hidden">
                         {track.image ? (
                           <img src={track.image} alt="Album art" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
@@ -1046,19 +1314,19 @@ export default function Room() {
                         <p className="text-[#666666] text-xs truncate mt-0.5">{track.artist}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`text-[10px] font-medium px-2 py-0.5 ${color.bg} ${color.text} rounded-md`}>
+                        <span className={`text-[10px] font-medium px-2 py-0.5 ${color.bg} ${color.text} rounded-xl`}>
                           {track.platform}
                         </span>
                         <button 
                           onClick={() => handleAddTrack(track)}
-                          disabled={addedTracks.includes(track.url)}
+                          disabled={addedTracks.includes(track.url) || isAddingTrack}
                           className={`p-2 rounded-full border transition-colors ${
                             addedTracks.includes(track.url) 
                               ? `${color.border} ${color.bg} ${color.text}` 
                               : `border-[#222222] text-[#E4E3E0] ${color.hoverBorder} ${color.hoverText} bg-[#000000]`
-                          }`}
+                          } disabled:opacity-50`}
                         >
-                          {addedTracks.includes(track.url) ? <Check size={16} /> : <Plus size={16} />}
+                          {addedTracks.includes(track.url) ? <Check size={16} /> : (isAddingTrack ? <Disc3 size={16} className="animate-spin" /> : <Plus size={16} />)}
                         </button>
                       </div>
                     </div>

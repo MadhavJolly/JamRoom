@@ -113,7 +113,7 @@ export default function Activity() {
                   {notif.type === 'like' ? ' liked your room ' : ' sent you a message'}
                   {notif.targetName && <span className="font-bold">"{notif.targetName}"</span>}
                 </p>
-                <p className="text-[#666666] text-xs mt-1">
+                <p className="text-[#666666] text-xs mt-1 font-mono">
                   {notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleString() : 'Just now'}
                 </p>
               </div>

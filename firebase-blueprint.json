@@ -12,6 +12,7 @@
         "followers": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs following this user." },
         "following": { "type": "array", "items": { "type": "string" }, "description": "List of user UIDs this user is following." },
         "likedRooms": { "type": "array", "items": { "type": "string" }, "description": "List of room IDs liked by this user." },
+        "nameColor": { "type": "string", "description": "The user's preferred name color in chat." },
         "createdAt": { "type": "timestamp", "description": "When the user was created." }
       },
       "required": ["uid", "name", "email", "createdAt"]
@@ -72,7 +73,9 @@
         "id": { "type": "string", "description": "The message's unique ID." },
         "userId": { "type": "string", "description": "The UID of the user who sent the message." },
         "userName": { "type": "string", "description": "The name of the user who sent the message." },
+        "nameColor": { "type": "string", "description": "The color of the user's name." },
         "text": { "type": "string", "description": "The message content." },
+        "isSystem": { "type": "boolean", "description": "Whether the message is a system notification." },
         "createdAt": { "type": "timestamp", "description": "When the message was sent." }
       },
       "required": ["id", "userId", "userName", "text", "createdAt"]

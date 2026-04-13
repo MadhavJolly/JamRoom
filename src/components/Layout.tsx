@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Home, Search, Plus, Bell, User, X, Copy, Check, Disc3, Maximize2, MessageCircle } from "lucide-react";
 import { cn } from "../lib/utils";
-import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useRoomContext } from "../RoomContext";
 
@@ -16,16 +16,25 @@ export default function Layout() {
   const [tagInput, setTagInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { minimizedRooms, removeMinimizedRoom } = useRoomContext();
 
   const shareCode = "JR-" + Math.random().toString(36).substring(2, 6).toUpperCase();
 
   const handleCreate = async () => {
-    if (!roomName || !auth.currentUser) return;
+    setError("");
+    if (!roomName) {
+      setError("Room name is required.");
+      return;
+    }
+    if (!auth.currentUser) return;
     setIsCreating(true);
 
     try {
+      const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+      const userProfile = userDoc.exists() ? userDoc.data() : null;
+
       const newRoomRef = doc(collection(db, "rooms"));
       const roomData: any = {
         id: newRoomRef.id,
@@ -34,7 +43,7 @@ export default function Layout() {
         isPrivate,
         isCollaborative,
         creatorId: auth.currentUser.uid,
-        creatorName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Anonymous',
+        creatorName: userProfile?.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Anonymous',
         createdAt: serverTimestamp(),
         likes: 0,
         tags: tags,
@@ -89,7 +98,7 @@ export default function Layout() {
         
         <div className="hidden md:flex items-center gap-2 mb-10 px-4 w-full">
           <Disc3 size={28} className="text-[#9146FF]" />
-          <span className="font-bold text-xl tracking-tight">JamRoom</span>
+          <span className="font-bold text-xl tracking-tight">Jam Rooms</span>
         </div>
 
         <div className="flex md:flex-col items-center md:items-start justify-around md:justify-start w-full md:gap-2 h-full md:h-auto">
@@ -126,7 +135,7 @@ export default function Layout() {
                 </div>
                 <div className="overflow-hidden">
                   <h4 className="font-semibold text-sm truncate">{room.name}</h4>
-                  <p className="text-xs text-[#666666] truncate">
+                  <p className="text-xs text-[#666666] truncate font-mono">
                     {room.creatorName} • {room.trackCount} tracks
                   </p>
                 </div>
@@ -137,7 +146,7 @@ export default function Layout() {
                     e.stopPropagation();
                     navigate(`/room/${room.id}`);
                   }}
-                  className="p-2 text-[#E4E3E0] hover:text-[#CCFF00] transition-colors"
+                  className="p-2 text-[#E4E3E0] hover:text-[#9146FF] transition-colors"
                 >
                   <Maximize2 size={18} />
                 </button>
@@ -168,19 +177,23 @@ export default function Layout() {
             </div>
 
             <div className="space-y-6">
+              {error && <p className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded-lg">{error}</p>}
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Room Name</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Room Name</label>
                 <input 
                   type="text" 
                   value={roomName}
-                  onChange={(e) => setRoomName(e.target.value)}
+                  onChange={(e) => {
+                    setRoomName(e.target.value);
+                    if (error) setError("");
+                  }}
                   placeholder="e.g. Late Night Dub" 
-                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
+                  className={`w-full bg-[#111111] border ${error ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
                 />
               </div>
 
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Description</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Description</label>
                 <textarea 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -190,11 +203,11 @@ export default function Layout() {
               </div>
 
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Genre Tags (Max 5)</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Genre Tags (Max 5)</label>
                 <div className="bg-[#111111] border border-[#222222] rounded-xl p-2 focus-within:border-[#9146FF] transition-colors">
                   <div className="flex flex-wrap gap-2 mb-2">
                     {tags.map(tag => (
-                      <span key={tag} className="px-2.5 py-1 bg-[#222222] rounded-md text-xs font-medium text-[#E4E3E0] flex items-center gap-1">
+                      <span key={tag} className="px-2.5 py-1 bg-[#222222] rounded-xl text-xs font-medium text-[#E4E3E0] flex items-center gap-1">
                         #{tag}
                         <button onClick={() => removeTag(tag)} className="hover:text-[#9146FF]"><X size={12} /></button>
                       </span>
@@ -213,7 +226,7 @@ export default function Layout() {
               </div>
 
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Privacy</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Privacy</label>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setIsPrivate(false)}
@@ -231,7 +244,7 @@ export default function Layout() {
               </div>
 
               <div>
-                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2">Collaboration</label>
+                <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Collaboration</label>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setIsCollaborative(false)}
@@ -251,8 +264,8 @@ export default function Layout() {
               {isPrivate && (
                 <div className="bg-[#111111] border border-[#222222] p-4 rounded-xl flex justify-between items-center animate-in fade-in zoom-in-95">
                   <div>
-                    <p className="text-[#666666] text-[10px] font-medium uppercase tracking-wider mb-1">Share Code</p>
-                    <p className="text-lg font-bold tracking-wider text-[#9146FF]">{shareCode}</p>
+                    <p className="text-[#666666] text-[10px] font-medium uppercase tracking-wider mb-1 font-mono">Share Code</p>
+                    <p className="text-lg font-bold tracking-wider text-[#9146FF] font-mono">{shareCode}</p>
                   </div>
                   <button onClick={copyCode} className="p-2 border border-[#222222] rounded-lg hover:border-[#9146FF] transition-colors text-[#E4E3E0] bg-[#000000]">
                     {copied ? <Check size={20} className="text-[#9146FF]" /> : <Copy size={20} />}

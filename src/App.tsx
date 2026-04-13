@@ -13,6 +13,7 @@ import PublicProfile from "./pages/PublicProfile";
 import Activity from "./pages/Activity";
 import Messages from "./pages/Messages";
 import Conversation from "./pages/Conversation";
+import { Toaster } from "sonner";
 import { RoomProvider } from "./RoomContext";
 
 export default function App() {
@@ -53,6 +54,7 @@ export default function App() {
 
   return (
     <RoomProvider>
+      <Toaster theme="dark" position="bottom-right" />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>

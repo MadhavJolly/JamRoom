@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", sans-serif;
-  --font-mono: "Inter", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
   --color-primary: #9146FF;
-  --color-neon-green: #CCFF00;
+  --color-neon-green: #9146FF;
   --color-neon-blue: #00FFCC;
   --color-neon-pink: #FF00CC;
   --color-neon-orange: #FF9900;
@@ -16,7 +16,7 @@
 body {
   background-color: #0A0A0A;
   color: #E4E3E0;
-  font-family: "Inter", sans-serif;
+  font-family: var(--font-sans);
 }
 
 @keyframes gradient-xy {
@@ -31,7 +31,7 @@ body {
 }
 
 .bg-gradient-highlight {
-  background: linear-gradient(90deg, #CCFF00, #00FFCC, #FF00CC, #CCFF00);
+  background: linear-gradient(90deg, #9146FF, #00FFCC, #FF00CC, #9146FF);
   background-size: 300% 300%;
 }
 
@@ -46,7 +46,7 @@ body {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(90deg, #CCFF00, #00FFCC, #FF00CC, #CCFF00);
+  background: linear-gradient(90deg, #9146FF, #00FFCC, #FF00CC, #9146FF);
   background-size: 300% 300%;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;

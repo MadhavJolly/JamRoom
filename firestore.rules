@@ -61,9 +61,13 @@ service cloud.firestore {
              isValidEmail(data.email) &&
              data.createdAt is timestamp &&
              isValidOptionalString('bio', 0, 500) &&
+             isValidOptionalString('nameColor', 0, 50) &&
              isValidOptionalList('followers', 10000) &&
              isValidOptionalList('following', 10000) &&
-             isValidOptionalList('likedRooms', 10000);
+             isValidOptionalList('likedRooms', 10000) &&
+             isValidOptionalList('likedTracks', 10000) &&
+             isValidOptionalList('genres', 100) &&
+             (!('onboardingComplete' in data) || data.onboardingComplete is bool);
     }
     
     function isValidRoom() {
@@ -103,7 +107,9 @@ service cloud.firestore {
              data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
              data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             (!('nameColor' in data) || (data.nameColor is string && data.nameColor.size() <= 50)) &&
              data.text is string && data.text.size() > 0 && data.text.size() < 1000 &&
+             (!('isSystem' in data) || data.isSystem is bool) &&
              data.createdAt is timestamp;
     }
 

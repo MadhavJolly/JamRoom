@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowRight, Disc3 } from "lucide-react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { getChipColor } from "../utils/colors";
 
@@ -14,8 +14,10 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   // Form State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const genres = ["House", "Trance", "Techno", "R&B", "EDM", "Pop", "Hip Hop", "Ambient", "Dubstep", "Drum & Bass"];
@@ -37,8 +39,13 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
   const handleLogin = async () => {
     setError("");
-    if (!email || !password) {
-      setError("Please enter email and password.");
+    setFieldErrors({});
+    const errors: { [key: string]: string } = {};
+    if (!email) errors.email = "Email is required.";
+    if (!password) errors.password = "Password is required.";
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
     setIsLoading(true);
@@ -51,16 +58,38 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       const data = userSnap.data();
       const hasCompletedOnboarding = data?.onboardingComplete || (data?.genres && data.genres.length > 0);
 
-      if (userSnap.exists() && hasCompletedOnboarding) {
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: userCredential.user.uid,
+          name: userCredential.user.displayName || "New User",
+          email: userCredential.user.email || "no-email@example.com",
+          createdAt: serverTimestamp(),
+          bio: "",
+          followers: [],
+          following: [],
+          likedRooms: [],
+          likedTracks: [],
+          genres: [],
+          onboardingComplete: false
+        });
+      }
+
+      if (hasCompletedOnboarding) {
         onComplete();
       } else {
-        setName(userCredential.user.displayName || "");
-        setEmail(userCredential.user.email || "");
+        setName(data?.name || userCredential.user.displayName || "");
+        setEmail(data?.email || userCredential.user.email || "");
         setView('complete_profile');
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to log in.");
+      if (err.code === "auth/operation-not-allowed") {
+        setError("Email/Password sign-in is not enabled. Please enable it in the Firebase Console -> Authentication -> Sign-in method.");
+      } else if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+        setError("Invalid email or password. If you don't have an account, please sign up.");
+      } else {
+        setError(err.message || "Failed to log in.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -80,16 +109,40 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       const data = userSnap.data();
       const hasCompletedOnboarding = data?.onboardingComplete || (data?.genres && data.genres.length > 0);
 
-      if (userSnap.exists() && hasCompletedOnboarding) {
+      if (!userSnap.exists()) {
+        await setDoc(userRef, {
+          uid: result.user.uid,
+          name: result.user.displayName || "New User",
+          email: result.user.email || "no-email@example.com",
+          createdAt: serverTimestamp(),
+          bio: "",
+          followers: [],
+          following: [],
+          likedRooms: [],
+          likedTracks: [],
+          genres: [],
+          onboardingComplete: false
+        });
+      }
+
+      if (hasCompletedOnboarding) {
         onComplete();
       } else {
-        setName(result.user.displayName || "");
-        setEmail(result.user.email || "");
+        setName(data?.name || result.user.displayName || "");
+        setEmail(data?.email || result.user.email || "");
         setView('complete_profile');
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to log in with Google.");
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError("Sign-in popup was closed. Please allow popups or try opening the app in a new tab.");
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError("This domain is not authorized for Google Sign-In. Please add your Vercel domain to the Firebase Console -> Authentication -> Settings -> Authorized domains.");
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError("Google sign-in is not enabled. Please enable it in the Firebase Console -> Authentication -> Sign-in method.");
+      } else {
+        setError(err.message || "Failed to log in with Google.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -97,8 +150,16 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
   const handleSignupContinue = () => {
     setError("");
-    if (!name || !email || !password) {
-      setError("Please fill in all fields.");
+    setFieldErrors({});
+    const errors: { [key: string]: string } = {};
+    if (!name) errors.name = "Full name is required.";
+    if (!email) errors.email = "Email is required.";
+    if (!password) errors.password = "Password is required.";
+    if (password && password.length < 6) errors.password = "Password must be at least 6 characters.";
+    if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match.";
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
     setView('genres');
@@ -106,11 +167,17 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
 
   const handleCompleteSignup = async () => {
     setError("");
+    setFieldErrors({});
     setIsLoading(true);
     try {
       let user = auth.currentUser;
       
       if (!user) {
+        if (!email || !password) {
+          setError("Email and password are required.");
+          setIsLoading(false);
+          return;
+        }
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         user = userCredential.user;
       }
@@ -128,12 +195,13 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
         await setDoc(userRef, {
           uid: user.uid,
           name: name || user.displayName || "New User",
-          email: email || user.email,
-          createdAt: new Date(),
+          email: email || user.email || "no-email@example.com",
+          createdAt: serverTimestamp(),
           bio: "",
           followers: [],
           following: [],
           likedRooms: [],
+          likedTracks: [],
           genres: selectedGenres,
           onboardingComplete: true
         });
@@ -142,7 +210,13 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       onComplete();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to create account.");
+      if (err.code === "auth/operation-not-allowed") {
+        setError("Email/Password sign-in is not enabled. Please enable it in the Firebase Console -> Authentication -> Sign-in method.");
+      } else if (err.code === "auth/email-already-in-use") {
+        setError("An account with this email already exists. Please log in.");
+      } else {
+        setError(err.message || "Failed to create account.");
+      }
       if (!auth.currentUser) setView('signup');
     } finally {
       setIsLoading(false);
@@ -164,22 +238,28 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             {error && <p className="text-red-500 text-sm mb-4 text-center bg-red-500/10 p-2 rounded-lg">{error}</p>}
 
             <div className="space-y-4 mb-4">
-              <input 
-                type="email" 
-                placeholder="Email address" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
-                disabled={isLoading}
-              />
-              <input 
-                type="password" 
-                placeholder="Password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
-                disabled={isLoading}
-              />
+              <div className="space-y-1">
+                <input 
+                  type="email" 
+                  placeholder="Email address" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`w-full bg-[#111111] border ${fieldErrors.email ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  disabled={isLoading}
+                />
+                {fieldErrors.email && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.email}</p>}
+              </div>
+              <div className="space-y-1">
+                <input 
+                  type="password" 
+                  placeholder="Password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`w-full bg-[#111111] border ${fieldErrors.password ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  disabled={isLoading}
+                />
+                {fieldErrors.password && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.password}</p>}
+              </div>
             </div>
             
             <div className="flex justify-end mb-6">
@@ -214,30 +294,50 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             {error && <p className="text-red-500 text-sm mb-4 text-center bg-red-500/10 p-2 rounded-lg">{error}</p>}
 
             <div className="space-y-4 mb-8">
-              <input 
-                type="text" 
-                placeholder="Full Name" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
-                disabled={isLoading}
-              />
-              <input 
-                type="email" 
-                placeholder="Email address" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
-                disabled={isLoading}
-              />
-              <input 
-                type="password" 
-                placeholder="Password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
-                disabled={isLoading}
-              />
+              <div className="space-y-1">
+                <input 
+                  type="text" 
+                  placeholder="Full Name" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={`w-full bg-[#111111] border ${fieldErrors.name ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  disabled={isLoading}
+                />
+                {fieldErrors.name && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.name}</p>}
+              </div>
+              <div className="space-y-1">
+                <input 
+                  type="email" 
+                  placeholder="Email address" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`w-full bg-[#111111] border ${fieldErrors.email ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  disabled={isLoading}
+                />
+                {fieldErrors.email && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.email}</p>}
+              </div>
+              <div className="space-y-1">
+                <input 
+                  type="password" 
+                  placeholder="Password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`w-full bg-[#111111] border ${fieldErrors.password ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  disabled={isLoading}
+                />
+                {fieldErrors.password && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.password}</p>}
+              </div>
+              <div className="space-y-1">
+                <input 
+                  type="password" 
+                  placeholder="Confirm Password" 
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`w-full bg-[#111111] border ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  disabled={isLoading}
+                />
+                {fieldErrors.confirmPassword && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.confirmPassword}</p>}
+              </div>
             </div>
 
             <button onClick={handleSignupContinue} className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mb-6">
@@ -258,21 +358,25 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             {error && <p className="text-red-500 text-sm mb-4 text-center bg-red-500/10 p-2 rounded-lg">{error}</p>}
 
             <div className="space-y-4 mb-8">
-              <input 
-                type="text" 
-                placeholder="Full Name" 
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
-                disabled={isLoading}
-              />
+              <div className="space-y-1">
+                <input 
+                  type="text" 
+                  placeholder="Full Name" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={`w-full bg-[#111111] border ${fieldErrors.name ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  disabled={isLoading}
+                />
+                {fieldErrors.name && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.name}</p>}
+              </div>
             </div>
 
             <button onClick={() => {
               if (!name) {
-                setError("Please enter your name.");
+                setFieldErrors({ name: "Please enter your name." });
                 return;
               }
+              setFieldErrors({});
               setError("");
               setView('genres');
             }} className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mb-6">
@@ -310,7 +414,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
               disabled={selectedGenres.length < 3 || isLoading}
               className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl disabled:opacity-50 flex justify-center items-center gap-2 transition-all hover:bg-[#772ce8]"
             >
-              {isLoading ? "Creating Account..." : <><>Enter Jam Rooms</> <ArrowRight size={20} /></>}
+              {isLoading ? "Saving..." : <><>Enter Jam Rooms</> <ArrowRight size={20} /></>}
             </button>
           </div>
         )}

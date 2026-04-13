@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { ArrowLeft, Send, Disc3 } from 'lucide-react';
+import { ArrowLeft, Send, Disc3, Trash2 } from 'lucide-react';
 
 export default function Conversation() {
   const { id } = useParams();
@@ -126,7 +126,7 @@ export default function Conversation() {
             </div>
             <div>
               <h2 className="font-bold text-[#E4E3E0] leading-tight">{otherUser.name}</h2>
-              <p className="text-xs text-[#666666]">@{otherUser.name?.toLowerCase()?.replace(/\s+/g, '_')}</p>
+              <p className="text-xs text-[#666666] font-mono">@{otherUser.name?.toLowerCase()?.replace(/\s+/g, '_')}</p>
             </div>
           </div>
         )}
@@ -135,7 +135,7 @@ export default function Conversation() {
       <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 md:pb-6">
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <Disc3 size={32} className="text-[#CCFF00] animate-[spin_4s_linear_infinite]" />
+            <Disc3 size={32} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center py-10 text-[#666666]">
@@ -145,28 +145,51 @@ export default function Conversation() {
           messages.map((msg) => {
             const isMe = msg.senderId === auth.currentUser?.uid;
             return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group`}>
-                <div 
-                  className={`max-w-[80%] rounded-xl px-4 py-2 ${
-                    isMe 
-                      ? 'bg-[#9146FF] text-white rounded-br-sm' 
-                      : 'bg-[#222222] text-[#E4E3E0] rounded-bl-sm'
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed">{msg.text}</p>
-                </div>
-                <div className="flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-[10px] text-[#666666]">
-                    {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
-                  </span>
-                  {isMe && (
-                    <button 
-                      onClick={() => handleDeleteMessage(msg.id)}
-                      className="text-[10px] text-red-500 hover:underline"
+              <div key={msg.id} className={`flex gap-3 group ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                {!isMe && (
+                  <div className="w-8 h-8 rounded-full bg-[#222222] flex-shrink-0 overflow-hidden self-end border border-[#333333]">
+                    <img src={`https://picsum.photos/seed/${otherUser?.uid || otherUser?.id}/100/100`} alt="Avatar" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                {isMe && (
+                  <div className="w-8 h-8 rounded-full bg-[#222222] flex-shrink-0 overflow-hidden self-end border border-[#333333]">
+                    <img src={`https://picsum.photos/seed/${auth.currentUser?.uid}/100/100`} alt="Avatar" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                
+                <div className={`flex flex-col max-w-[75%] ${isMe ? 'items-end' : 'items-start'}`}>
+                  <div className="relative group/bubble">
+                    <div 
+                      className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                        isMe 
+                          ? 'bg-[#9146FF] text-white rounded-br-none' 
+                          : 'bg-[#1A1A1A] text-[#E4E3E0] border border-[#222222] rounded-bl-none'
+                      }`}
                     >
-                      Delete
-                    </button>
-                  )}
+                      <p>{msg.text}</p>
+                    </div>
+                    
+                    <div className={`
+                      absolute top-0 opacity-0 group-hover/bubble:opacity-100 transition-opacity flex gap-1 p-1 bg-[#0A0A0A]/80 backdrop-blur-sm rounded-lg border border-[#222222] z-10
+                      ${isMe ? 'right-full mr-2' : 'left-full ml-2'}
+                    `}>
+                      {isMe && (
+                        <button 
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="p-1 text-[#666666] hover:text-red-500 transition-colors"
+                          title="Delete message"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className={`mt-1 ${isMe ? 'mr-1' : 'ml-1'}`}>
+                    <span className="text-[10px] text-[#666666] font-mono">
+                      {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
