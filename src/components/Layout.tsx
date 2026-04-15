@@ -112,7 +112,6 @@ export default function Layout() {
 
           <NavItem to="/" icon={<Home size={24} />} label="Feed" className="order-1 md:order-none" />
           <NavItem to="/search" icon={<Search size={24} />} label="Search" className="order-2 md:order-none" />
-          <NavItem to="/messages" icon={<MessageCircle size={24} />} label="Messages" className="order-4 md:order-none" />
           <NavItem to="/profile" icon={<User size={24} />} label="Profile" className="order-5 md:order-none" />
         </div>
       </nav>

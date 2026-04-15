@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowRight, Disc3 } from "lucide-react";
+import { ArrowRight, Disc3, Cat, Dog, Bird, Fish, Snail, Bug, Bot, Skull, Smile, Zap, Star, Ghost, Check } from "lucide-react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
@@ -16,9 +16,25 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
+  const [profileIcon, setProfileIcon] = useState("Smile");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  const profileIcons = [
+    { name: "Smile", icon: Smile },
+    { name: "Ghost", icon: Ghost },
+    { name: "Cat", icon: Cat },
+    { name: "Dog", icon: Dog },
+    { name: "Bird", icon: Bird },
+    { name: "Fish", icon: Fish },
+    { name: "Snail", icon: Snail },
+    { name: "Bug", icon: Bug },
+    { name: "Bot", icon: Bot },
+    { name: "Skull", icon: Skull },
+    { name: "Zap", icon: Zap },
+    { name: "Star", icon: Star },
+  ];
 
   const genres = ["House", "Trance", "Techno", "R&B", "EDM", "Pop", "Hip Hop", "Ambient", "Dubstep", "Drum & Bass"];
 
@@ -57,6 +73,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       
       const data = userSnap.data();
       const hasCompletedOnboarding = data?.onboardingComplete || (data?.genres && data.genres.length > 0);
+      const isFounder = userCredential.user.email === 'madhavjolly.paypal@gmail.com';
 
       if (!userSnap.exists()) {
         await setDoc(userRef, {
@@ -70,8 +87,11 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
           likedRooms: [],
           likedTracks: [],
           genres: [],
-          onboardingComplete: false
+          onboardingComplete: false,
+          isFounder: isFounder
         });
+      } else if (isFounder && !data?.isFounder) {
+        await setDoc(userRef, { isFounder: true }, { merge: true });
       }
 
       if (hasCompletedOnboarding) {
@@ -109,6 +129,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       const data = userSnap.data();
       const hasCompletedOnboarding = data?.onboardingComplete || (data?.genres && data.genres.length > 0);
 
+      const isFounder = result.user.email === 'madhavjolly.paypal@gmail.com';
+
       if (!userSnap.exists()) {
         await setDoc(userRef, {
           uid: result.user.uid,
@@ -121,8 +143,11 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
           likedRooms: [],
           likedTracks: [],
           genres: [],
-          onboardingComplete: false
+          onboardingComplete: false,
+          isFounder: isFounder
         });
+      } else if (isFounder && !data?.isFounder) {
+        await setDoc(userRef, { isFounder: true }, { merge: true });
       }
 
       if (hasCompletedOnboarding) {
@@ -184,18 +209,22 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
       
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
+      const isFounder = user.email === 'madhavjolly.paypal@gmail.com';
       
       if (userSnap.exists()) {
         await setDoc(userRef, {
           name: name || user.displayName || "New User",
+          profileIcon: profileIcon,
           genres: selectedGenres,
-          onboardingComplete: true
+          onboardingComplete: true,
+          ...(isFounder ? { isFounder: true } : {})
         }, { merge: true });
       } else {
         await setDoc(userRef, {
           uid: user.uid,
           name: name || user.displayName || "New User",
           email: email || user.email || "no-email@example.com",
+          profileIcon: profileIcon,
           createdAt: serverTimestamp(),
           bio: "",
           followers: [],
@@ -203,7 +232,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
           likedRooms: [],
           likedTracks: [],
           genres: selectedGenres,
-          onboardingComplete: true
+          onboardingComplete: true,
+          isFounder: isFounder
         });
       }
       
@@ -229,6 +259,45 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
         <div className="flex justify-center mb-8">
           <Disc3 size={48} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
         </div>
+
+        {view !== 'login' && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between relative">
+              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-[#222222] -z-10" />
+              <div 
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-[#9146FF] -z-10 transition-all duration-500"
+                style={{ width: view === 'signup' ? '0%' : view === 'complete_profile' ? '50%' : '100%' }}
+              />
+              
+              {[
+                { id: 'signup', label: 'Account', step: 1 },
+                { id: 'complete_profile', label: 'Profile', step: 2 },
+                { id: 'genres', label: 'Genres', step: 3 }
+              ].map((s) => {
+                const currentStep = view === 'signup' ? 1 : view === 'complete_profile' ? 2 : 3;
+                const isCompleted = s.step < currentStep;
+                const isCurrent = s.step === currentStep;
+                
+                return (
+                  <div key={s.id} className="flex flex-col items-center gap-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+                      isCompleted ? 'bg-[#9146FF] text-white' : 
+                      isCurrent ? 'bg-[#111111] border-2 border-[#9146FF] text-[#9146FF]' : 
+                      'bg-[#111111] border-2 border-[#222222] text-[#666666]'
+                    }`}>
+                      {isCompleted ? <Check size={16} /> : s.step}
+                    </div>
+                    <span className={`text-[10px] font-mono uppercase tracking-wider ${
+                      isCurrent ? 'text-[#E4E3E0]' : 'text-[#666666]'
+                    }`}>
+                      {s.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {view === 'login' && (
           <div className="animate-in slide-in-from-right-4 duration-300">
@@ -368,6 +437,28 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   disabled={isLoading}
                 />
                 {fieldErrors.name && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.name}</p>}
+              </div>
+
+              <div className="space-y-2 mt-4">
+                <label className="text-sm text-[#666666] block">Choose an Icon</label>
+                <div className="grid grid-cols-4 gap-3">
+                  {profileIcons.map((iconData) => {
+                    const IconComponent = iconData.icon;
+                    return (
+                      <button
+                        key={iconData.name}
+                        onClick={() => setProfileIcon(iconData.name)}
+                        className={`p-3 rounded-xl flex justify-center items-center transition-all ${
+                          profileIcon === iconData.name
+                            ? 'bg-[#9146FF] text-white border border-[#9146FF]'
+                            : 'bg-[#111111] text-[#666666] border border-[#222222] hover:border-[#666666] hover:text-[#E4E3E0]'
+                        }`}
+                      >
+                        <IconComponent size={24} />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

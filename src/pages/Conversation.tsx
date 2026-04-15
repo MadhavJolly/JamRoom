@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { ArrowLeft, Send, Disc3, Trash2 } from 'lucide-react';
+import { UserAvatar } from '../components/UserAvatar';
 
 export default function Conversation() {
   const { id } = useParams();
@@ -10,6 +11,7 @@ export default function Conversation() {
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [otherUser, setOtherUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -18,6 +20,11 @@ export default function Conversation() {
 
     const fetchOtherUser = async () => {
       try {
+        const currentUserDoc = await getDoc(doc(db, "users", auth.currentUser!.uid));
+        if (currentUserDoc.exists()) {
+          setCurrentUser(currentUserDoc.data());
+        }
+
         const convDoc = await getDoc(doc(db, "conversations", id));
         if (convDoc.exists()) {
           const data = convDoc.data();
@@ -122,7 +129,7 @@ export default function Conversation() {
             onClick={() => navigate(`/user/${otherUser.uid}`)}
           >
             <div className="w-10 h-10 rounded-full bg-[#222222] overflow-hidden">
-              <img src={`https://picsum.photos/seed/${otherUser.uid || otherUser.id}/100/100`} alt={otherUser.name} className="w-full h-full object-cover" />
+              <UserAvatar iconName={otherUser.profileIcon} size={24} className="w-full h-full" />
             </div>
             <div>
               <h2 className="font-bold text-[#E4E3E0] leading-tight">{otherUser.name}</h2>
@@ -148,12 +155,12 @@ export default function Conversation() {
               <div key={msg.id} className={`flex gap-3 group ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                 {!isMe && (
                   <div className="w-8 h-8 rounded-full bg-[#222222] flex-shrink-0 overflow-hidden self-end border border-[#333333]">
-                    <img src={`https://picsum.photos/seed/${otherUser?.uid || otherUser?.id}/100/100`} alt="Avatar" className="w-full h-full object-cover" />
+                    <UserAvatar iconName={otherUser?.profileIcon} size={20} className="w-full h-full" />
                   </div>
                 )}
                 {isMe && (
                   <div className="w-8 h-8 rounded-full bg-[#222222] flex-shrink-0 overflow-hidden self-end border border-[#333333]">
-                    <img src={`https://picsum.photos/seed/${auth.currentUser?.uid}/100/100`} alt="Avatar" className="w-full h-full object-cover" />
+                    <UserAvatar iconName={currentUser?.profileIcon} size={20} className="w-full h-full" />
                   </div>
                 )}
                 

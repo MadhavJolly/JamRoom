@@ -167,9 +167,6 @@ export default function Search() {
                         <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                       );
                     })}
-                    {(!room.tags || room.tags.length === 0) && (
-                      <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full border-2 border-[#111111] bg-[#222222] flex items-center justify-center text-[10px] font-medium text-[#E4E3E0]">

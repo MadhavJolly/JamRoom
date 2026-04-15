@@ -5,6 +5,7 @@ import { doc, getDoc, collection, query, where, onSnapshot, updateDoc, arrayUnio
 import { db, auth } from "../firebase";
 
 import { getChipColor } from "../utils/colors";
+import { UserAvatar } from "../components/UserAvatar";
 
 export default function PublicProfile() {
   const { id } = useParams();
@@ -114,6 +115,20 @@ export default function PublicProfile() {
       } else {
         await updateDoc(currentUserRef, { following: arrayUnion(id) });
         await updateDoc(targetUserRef, { followers: arrayUnion(auth.currentUser.uid) });
+        
+        // Create follow notification
+        const notifRef = doc(collection(db, "notifications"));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: id,
+          actorId: auth.currentUser.uid,
+          actorName: currentUserData?.name || auth.currentUser.displayName || "Someone",
+          type: "follow",
+          targetId: auth.currentUser.uid,
+          targetName: "you",
+          read: false,
+          createdAt: serverTimestamp()
+        });
       }
     } catch (error) {
       console.error("Error toggling follow:", error);
@@ -140,7 +155,7 @@ export default function PublicProfile() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <div className="w-24 h-24 bg-[#222222] rounded-full mb-4 border-2 border-[#222222] overflow-hidden">
-              <img src={`https://picsum.photos/seed/${user?.name || id}/200/200`} alt="Profile" className="w-full h-full object-cover" />
+              <UserAvatar iconName={user?.profileIcon} size={48} className="w-full h-full" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight" style={{ color: user?.nameColor || '#E4E3E0' }}>{user?.name || 'Unknown'}</h1>
             <p className="text-[#666666] text-sm font-medium mt-1 font-mono">@{user?.name?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}</p>
@@ -157,40 +172,6 @@ export default function PublicProfile() {
                 }`}
               >
                 {isFollowing ? 'Following' : 'Follow'}
-              </button>
-              <button 
-                onClick={async () => {
-                  if (!auth.currentUser || !id) return;
-                  try {
-                    // Check if conversation exists
-                    const convId1 = `${auth.currentUser.uid}_${id}`;
-                    const convId2 = `${id}_${auth.currentUser.uid}`;
-                    
-                    const conv1Ref = doc(db, "conversations", convId1);
-                    const conv2Ref = doc(db, "conversations", convId2);
-                    
-                    const [doc1, doc2] = await Promise.all([getDoc(conv1Ref), getDoc(conv2Ref)]);
-                    
-                    if (doc1.exists()) {
-                      navigate(`/messages/${convId1}`);
-                    } else if (doc2.exists()) {
-                      navigate(`/messages/${convId2}`);
-                    } else {
-                      // Create new conversation
-                      await setDoc(conv1Ref, {
-                        id: convId1,
-                        participants: [auth.currentUser.uid, id],
-                        updatedAt: serverTimestamp()
-                      });
-                      navigate(`/messages/${convId1}`);
-                    }
-                  } catch (e) {
-                    console.error("Error creating conversation", e);
-                  }
-                }}
-                className="px-6 py-2 rounded-full font-bold text-sm transition-colors bg-[#222222] text-[#E4E3E0] hover:bg-[#333333]"
-              >
-                Message
               </button>
             </div>
           )}
@@ -265,9 +246,6 @@ export default function PublicProfile() {
                           <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                         );
                       })}
-                      {(!room.tags || room.tags.length === 0) && (
-                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
-                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full border-2 border-[#111111] bg-[#222222] flex items-center justify-center text-[10px] font-medium text-[#E4E3E0] font-mono">
@@ -327,9 +305,6 @@ export default function PublicProfile() {
                           <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                         );
                       })}
-                      {(!room.tags || room.tags.length === 0) && (
-                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
-                      )}
                     </div>
                   </div>
                 </div>

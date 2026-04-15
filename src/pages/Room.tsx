@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Share2, Plus, Search as SearchIcon, X, Check, Disc3, MoreVertical, ExternalLink, Trash2, Settings, GripVertical, MessageSquare, Send, Copy, Heart } from "lucide-react";
+import { ArrowLeft, Play, Share2, Plus, Search as SearchIcon, X, Check, Disc3, MoreVertical, ExternalLink, Trash2, Settings, GripVertical, MessageSquare, Send, Copy, Heart, Crown } from "lucide-react";
+import { UserAvatar } from "../components/UserAvatar";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -16,6 +17,7 @@ interface Track {
   url: string;
   addedBy: string;
   addedByName?: string;
+  addedByProfileIcon?: string;
   addedAt?: any;
   order: number;
   image?: string;
@@ -26,8 +28,11 @@ interface Message {
   id: string;
   userId: string;
   userName: string;
+  profileIcon?: string;
   text: string;
   createdAt: any;
+  nameColor?: string;
+  isFounder?: boolean;
 }
 
 function formatTimeAgo(timestamp: any) {
@@ -76,7 +81,9 @@ const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, 
         {track.image ? (
           <img src={track.image} alt="Album art" className="absolute inset-0 w-full h-full object-cover opacity-60" referrerPolicy="no-referrer" />
         ) : (
-          <img src={`https://picsum.photos/seed/track${track.id}/100/100`} alt="Album art" className="absolute inset-0 w-full h-full object-cover opacity-60" referrerPolicy="no-referrer" />
+          <div className="absolute inset-0 w-full h-full bg-[#333333] flex items-center justify-center opacity-60">
+            <Disc3 size={20} className="text-[#666666]" />
+          </div>
         )}
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <Play size={20} className="text-[#9146FF] ml-1" />
@@ -162,7 +169,7 @@ const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, 
             </span>
           )}
           <div className="w-6 h-6 rounded-full bg-[#222222] overflow-hidden" title={`Added by ${track.addedByName || 'User'}`}>
-            <img src={`https://picsum.photos/seed/${track.addedBy}/100/100`} alt="User" className="w-full h-full object-cover" />
+            <UserAvatar iconName={track.addedByProfileIcon} size={14} className="w-full h-full" />
           </div>
         </div>
         <button onClick={() => onSelect(track)} className="p-2 text-[#666666] hover:text-[#E4E3E0] transition-colors -mr-2">
@@ -196,6 +203,7 @@ const renderMessageText = (text: string) => {
 
 import { getChipColor } from '../utils/colors';
 import { toast } from 'sonner';
+import { Filter } from 'bad-words';
 
 export default function Room() {
   const { id } = useParams();
@@ -224,7 +232,10 @@ export default function Room() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedRoomLink, setCopiedRoomLink] = useState(false);
   const [editTags, setEditTags] = useState<string[]>([]);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [tagInput, setTagInput] = useState("");
+  const [isConfirmingClearChat, setIsConfirmingClearChat] = useState(false);
 
   const [roomTracks, setRoomTracks] = useState<Track[]>([]);
   const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
@@ -270,7 +281,6 @@ export default function Room() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const tracksEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = (ref: React.RefObject<HTMLDivElement>) => {
     ref.current?.scrollIntoView({ behavior: "smooth" });
@@ -279,10 +289,8 @@ export default function Room() {
   useEffect(() => {
     if (activeTab === 'chat') {
       scrollToBottom(messagesEndRef);
-    } else if (activeTab === 'tracks') {
-      scrollToBottom(tracksEndRef);
     }
-  }, [messages, roomTracks, activeTab]);
+  }, [messages, activeTab]);
 
   // Presence State
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
@@ -294,6 +302,8 @@ export default function Room() {
         userId: auth.currentUser.uid,
         userName: currentUserProfile.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Anonymous",
         nameColor: currentUserProfile.nameColor || "#E4E3E0",
+        profileIcon: currentUserProfile.profileIcon || "Smile",
+        isFounder: currentUserProfile.isFounder || false,
         joinedAt: serverTimestamp()
       }, { merge: true }).catch(console.error);
     }
@@ -426,6 +436,7 @@ export default function Room() {
         image: track.image || "",
         addedBy: auth.currentUser.uid,
         addedByName: currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "User",
+        addedByProfileIcon: currentUserProfile?.profileIcon || "Smile",
         addedAt: serverTimestamp(),
         order: -1, // Will be placed at the top
         reactions: {}
@@ -683,6 +694,9 @@ export default function Room() {
     e.preventDefault();
     if (!newMessage.trim() || !id || id === 'new' || !auth.currentUser) return;
     
+    const filter = new Filter();
+    const cleanMessage = filter.clean(newMessage);
+    
     const messageId = Date.now().toString();
     const messageRef = doc(db, "rooms", id, "messages", messageId);
     
@@ -692,7 +706,8 @@ export default function Room() {
         userId: auth.currentUser.uid,
         userName: currentUserProfile?.name || auth.currentUser.displayName || "User",
         nameColor: currentUserProfile?.nameColor || "#E4E3E0",
-        text: newMessage,
+        isFounder: currentUserProfile?.isFounder || false,
+        text: cleanMessage,
         createdAt: serverTimestamp()
       });
       setNewMessage("");
@@ -702,8 +717,8 @@ export default function Room() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
-      <header className="sticky top-0 bg-[#0A0A0A]/90 backdrop-blur-md border-b border-[#222222] p-4 z-10">
+    <div className="h-[100dvh] bg-[#0A0A0A] flex flex-col overflow-hidden">
+      <header className="flex-shrink-0 bg-[#0A0A0A]/90 backdrop-blur-md border-b border-[#222222] p-4 z-10">
         <div className="flex items-center justify-between mb-4">
           <button onClick={handleBack} className="p-2 -ml-2 text-[#666666] hover:text-[#E4E3E0] transition-colors rounded-full hover:bg-[#111111]">
             <ArrowLeft size={24} />
@@ -718,7 +733,10 @@ export default function Room() {
             {isCreator && (
               <button 
                 onClick={() => {
+                  setEditName(room?.name || "");
+                  setEditDescription(room?.description || "");
                   setEditTags(room?.tags || []);
+                  setIsConfirmingClearChat(false);
                   setIsRoomSettingsOpen(true);
                 }}
                 className="p-2 border border-[#222222] rounded-full hover:border-[#E4E3E0] transition-colors hover:bg-[#111111]"
@@ -800,7 +818,18 @@ export default function Room() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-3 pb-24 lg:pb-24">
+          {canAddTrack && (
+            <div className="mb-4 flex-shrink-0">
+              <button 
+                onClick={() => setIsAddTrackOpen(true)}
+                className="w-full bg-[#9146FF] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#772ce8] transition-colors shadow-[0_0_20px_rgba(145,70,255,0.15)]"
+              >
+                <Plus size={20} /> Add Track
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto space-y-3 pb-4">
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={roomTracks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                 {roomTracks.map((track: Track) => (
@@ -814,27 +843,15 @@ export default function Room() {
                 ))}
               </SortableContext>
             </DndContext>
-            <div ref={tracksEndRef} />
             
             {roomTracks.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-[#222222] rounded-2xl m-4">
                 <Disc3 size={48} className="text-[#666666] mb-4" />
                 <h3 className="text-xl font-bold text-[#E4E3E0] mb-2">The room is quiet</h3>
-                <p className="text-[#666666] mb-6 max-w-md">Drop the first track to get the party started. Click the button below to add music.</p>
+                <p className="text-[#666666] mb-6 max-w-md">Drop the first track to get the party started.</p>
               </div>
             )}
           </div>
-
-          {canAddTrack && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent pt-12 z-20">
-              <button 
-                onClick={() => setIsAddTrackOpen(true)}
-                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-[#772ce8] transition-colors shadow-[0_0_20px_rgba(145,70,255,0.15)]"
-              >
-                <Plus size={20} /> Add Track
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Chat Section */}
@@ -885,7 +902,7 @@ export default function Room() {
                 return (
                   <div key={msg.id} className="flex gap-3 group">
                     <div className="w-8 h-8 rounded-full bg-[#222222] flex-shrink-0 overflow-hidden cursor-pointer" onClick={() => navigate(`/user/${msg.userId}`)}>
-                      <img src={`https://picsum.photos/seed/${msg.userId}/100/100`} alt={msg.userName} className="w-full h-full object-cover" />
+                      <UserAvatar iconName={msg.profileIcon} size={20} className="w-full h-full" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-baseline gap-2">
@@ -896,6 +913,16 @@ export default function Room() {
                         >
                           @{msg.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}
                         </span>
+                        {msg.isFounder && (
+                          <span className="text-[#9146FF] flex items-center" title="Platform Founder">
+                            <Crown size={14} className="fill-[#9146FF]" />
+                          </span>
+                        )}
+                        {msg.userId === room?.creatorId && !msg.isFounder && (
+                          <span className="bg-[#9146FF]/20 text-[#9146FF] text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold font-mono">
+                            Creator
+                          </span>
+                        )}
                         <span className="text-[10px] text-[#666666] font-mono">
                           {msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
                         </span>
@@ -967,12 +994,19 @@ export default function Room() {
                 <div key={user.userId} className="flex items-center justify-between p-3 bg-[#111111] rounded-xl border border-[#222222]">
                   <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/user/${user.userId}`)}>
                     <div className="w-10 h-10 rounded-full bg-[#222222] overflow-hidden">
-                      <img src={`https://picsum.photos/seed/${user.userId}/100/100`} alt={user.userName} className="w-full h-full object-cover" />
+                      <UserAvatar iconName={user.profileIcon} size={24} className="w-full h-full" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm font-mono" style={{ color: user.nameColor || '#E4E3E0' }}>@{user.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="font-bold text-sm font-mono" style={{ color: user.nameColor || '#E4E3E0' }}>@{user.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}</p>
+                        {user.isFounder && (
+                          <span className="text-[#9146FF]" title="Platform Founder">
+                            <Crown size={14} className="fill-[#9146FF]" />
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-2 mt-0.5">
-                        {user.userId === room?.creatorId && (
+                        {user.userId === room?.creatorId && !user.isFounder && (
                           <span className="text-[10px] text-[#9146FF] font-medium uppercase tracking-wider font-mono">Creator</span>
                         )}
                         {room?.moderators?.includes(user.userId) && (
@@ -1065,7 +1099,9 @@ export default function Room() {
               {selectedTrack.image ? (
                 <img src={selectedTrack.image} alt="Album art" className="w-16 h-16 rounded-xl object-cover" referrerPolicy="no-referrer" />
               ) : (
-                <img src={`https://picsum.photos/seed/track${selectedTrack.id}/100/100`} alt="Album art" className="w-16 h-16 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                <div className="w-16 h-16 rounded-xl bg-[#333333] flex items-center justify-center">
+                  <Disc3 size={24} className="text-[#666666]" />
+                </div>
               )}
               <div>
                 <h3 className="font-bold text-lg">{selectedTrack.title}</h3>
@@ -1130,7 +1166,7 @@ export default function Room() {
       {/* Room Settings Modal */}
       {isRoomSettingsOpen && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-end sm:items-center justify-center sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-[#0A0A0A] border border-[#222222] w-full max-w-md p-6 rounded-t-xl sm:rounded-xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 duration-200">
+          <div className="bg-[#0A0A0A] border border-[#222222] w-full max-w-md p-6 rounded-t-xl sm:rounded-xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-bold tracking-tight">Room Settings</h2>
               <button onClick={() => setIsRoomSettingsOpen(false)} className="text-[#666666] hover:text-[#E4E3E0] p-1 rounded-full hover:bg-[#111111] transition-colors">
@@ -1143,8 +1179,8 @@ export default function Room() {
                 <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Edit Name</label>
                 <input 
                   type="text" 
-                  defaultValue={room?.name || ""}
-                  onChange={(e) => updateDoc(doc(db, "rooms", id!), { name: e.target.value })}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
                   className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
                 />
               </div>
@@ -1152,8 +1188,8 @@ export default function Room() {
               <div>
                 <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Description</label>
                 <textarea 
-                  defaultValue={room?.description || ""}
-                  onChange={(e) => updateDoc(doc(db, "rooms", id!), { description: e.target.value })}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
                   placeholder="Add a short description..."
                   className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors resize-none h-24"
                 />
@@ -1169,7 +1205,6 @@ export default function Room() {
                         <button onClick={() => {
                           const newTags = editTags.filter(t => t !== tag);
                           setEditTags(newTags);
-                          updateDoc(doc(db, "rooms", id!), { tags: newTags });
                         }} className="hover:text-[#9146FF]"><X size={12} /></button>
                       </span>
                     ))}
@@ -1183,10 +1218,8 @@ export default function Room() {
                         e.preventDefault();
                         const newTag = tagInput.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
                         if (newTag && editTags.length < 5 && !editTags.includes(newTag)) {
-                          const newTags = [...editTags, newTag];
-                          setEditTags(newTags);
+                          setEditTags([...editTags, newTag]);
                           setTagInput("");
-                          updateDoc(doc(db, "rooms", id!), { tags: newTags });
                         }
                       }
                     }}
@@ -1197,42 +1230,81 @@ export default function Room() {
                 </div>
               </div>
 
+              <button 
+                onClick={async () => {
+                  try {
+                    await updateDoc(doc(db, "rooms", id!), {
+                      name: editName,
+                      description: editDescription,
+                      tags: editTags
+                    });
+                    toast.success("Room settings saved");
+                    setIsRoomSettingsOpen(false);
+                  } catch (error) {
+                    console.error("Error saving room settings:", error);
+                    toast.error("Failed to save room settings");
+                  }
+                }}
+                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors shadow-[0_0_20px_rgba(145,70,255,0.15)]"
+              >
+                Save Changes
+              </button>
+
               <div className="pt-4 border-t border-[#222222]">
-                <button 
-                  onClick={async () => {
-                    if (window.confirm("Are you sure you want to clear the chat? This cannot be undone.")) {
-                      try {
-                        const messagesRef = collection(db, "rooms", id!, "messages");
-                        const messagesSnapshot = await getDocs(messagesRef);
-                        const batch = writeBatch(db);
-                        messagesSnapshot.docs.forEach((doc) => {
-                          batch.delete(doc.ref);
-                        });
-                        await batch.commit();
-                        
-                        // Add system message indicating chat was cleared
-                        const messageId = Date.now().toString();
-                        await setDoc(doc(db, "rooms", id!, "messages", messageId), {
-                          id: messageId,
-                          userId: "system",
-                          userName: "System",
-                          text: "Chat history was cleared by the room creator.",
-                          isSystem: true,
-                          createdAt: serverTimestamp()
-                        });
-                        
-                        setIsRoomSettingsOpen(false);
-                        toast.success("Chat history cleared");
-                      } catch (error) {
-                        console.error("Error clearing chat:", error);
-                        toast.error("Failed to clear chat");
-                      }
-                    }
-                  }}
-                  className="w-full border border-[#222222] text-[#E4E3E0] font-bold py-4 rounded-xl hover:bg-[#111111] transition-colors flex items-center justify-center gap-2"
-                >
-                  <MessageSquare size={20} /> Clear Chat
-                </button>
+                {isConfirmingClearChat ? (
+                  <div className="bg-[#111111] border border-red-500/50 rounded-xl p-4">
+                    <p className="text-sm text-[#E4E3E0] mb-4 text-center">Are you sure you want to clear the chat? This cannot be undone.</p>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setIsConfirmingClearChat(false)}
+                        className="flex-1 bg-[#222222] text-[#E4E3E0] font-bold py-3 rounded-xl hover:bg-[#333333] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const messagesRef = collection(db, "rooms", id!, "messages");
+                            const messagesSnapshot = await getDocs(messagesRef);
+                            const batch = writeBatch(db);
+                            messagesSnapshot.docs.forEach((doc) => {
+                              batch.delete(doc.ref);
+                            });
+                            await batch.commit();
+                            
+                            // Add system message indicating chat was cleared
+                            const messageId = Date.now().toString();
+                            await setDoc(doc(db, "rooms", id!, "messages", messageId), {
+                              id: messageId,
+                              userId: "system",
+                              userName: "System",
+                              text: "Chat history was cleared by the room creator.",
+                              isSystem: true,
+                              createdAt: serverTimestamp()
+                            });
+                            
+                            setIsConfirmingClearChat(false);
+                            setIsRoomSettingsOpen(false);
+                            toast.success("Chat history cleared");
+                          } catch (error) {
+                            console.error("Error clearing chat:", error);
+                            toast.error("Failed to clear chat");
+                          }
+                        }}
+                        className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition-colors"
+                      >
+                        Clear Chat
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setIsConfirmingClearChat(true)}
+                    className="w-full border border-[#222222] text-[#E4E3E0] font-bold py-4 rounded-xl hover:bg-[#111111] transition-colors flex items-center justify-center gap-2"
+                  >
+                    <MessageSquare size={20} /> Clear Chat
+                  </button>
+                )}
               </div>
 
               <button 

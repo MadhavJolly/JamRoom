@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Heart, MessageCircle, Disc3 } from "lucide-react";
+import { Bell, Heart, MessageCircle, Disc3, UserPlus } from "lucide-react";
 import { collection, query, where, onSnapshot, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
@@ -67,6 +67,8 @@ export default function Activity() {
       navigate(`/room/${notif.targetId}`);
     } else if (notif.type === "message") {
       navigate(`/messages/${notif.targetId}`);
+    } else if (notif.type === "follow") {
+      navigate(`/user/${notif.actorId}`);
     }
   };
 
@@ -101,8 +103,8 @@ export default function Activity() {
                   : 'hover-gradient-border bg-[#1A1A1A]'
               }`}
             >
-              <div className={`p-3 rounded-full flex-shrink-0 ${notif.type === 'like' ? 'bg-pink-500/10 text-pink-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                {notif.type === 'like' ? <Heart size={20} className="fill-current" /> : <MessageCircle size={20} className="fill-current" />}
+              <div className={`p-3 rounded-full flex-shrink-0 ${notif.type === 'like' ? 'bg-pink-500/10 text-pink-500' : notif.type === 'follow' ? 'bg-[#9146FF]/10 text-[#9146FF]' : 'bg-blue-500/10 text-blue-500'}`}>
+                {notif.type === 'like' ? <Heart size={20} className="fill-current" /> : notif.type === 'follow' ? <UserPlus size={20} className="fill-current" /> : <MessageCircle size={20} className="fill-current" />}
               </div>
               
               <div className="flex-1 min-w-0">
@@ -110,8 +112,8 @@ export default function Activity() {
                   <span className="font-bold cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/user/${notif.actorId}`); }}>
                     {notif.actorName}
                   </span>
-                  {notif.type === 'like' ? ' liked your room ' : ' sent you a message'}
-                  {notif.targetName && <span className="font-bold">"{notif.targetName}"</span>}
+                  {notif.type === 'like' ? ' liked your room ' : notif.type === 'follow' ? ' started following you' : ' sent you a message'}
+                  {notif.type !== 'follow' && notif.targetName && <span className="font-bold">"{notif.targetName}"</span>}
                 </p>
                 <p className="text-[#666666] text-xs mt-1 font-mono">
                   {notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleString() : 'Just now'}

@@ -270,9 +270,6 @@ export default function Home() {
                       <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                     );
                   })}
-                  {(!room.tags || room.tags.length === 0) && (
-                    <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
-                  )}
                 </div>
                 
                 <div className="flex items-center gap-2">

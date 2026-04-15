@@ -6,6 +6,7 @@ import { doc, getDoc, updateDoc, collection, query, where, onSnapshot, arrayRemo
 import { auth, db } from "../firebase";
 
 import { getChipColor } from "../utils/colors";
+import { UserAvatar } from "../components/UserAvatar";
 
 import { toast } from 'sonner';
 
@@ -187,7 +188,7 @@ export default function Profile() {
       <header className="flex justify-between items-start mb-8 pt-4">
         <div>
           <div className="w-24 h-24 bg-[#222222] rounded-full mb-4 border-2 border-[#9146FF] overflow-hidden relative group">
-            <img src={`https://picsum.photos/seed/${auth.currentUser?.uid || 'user'}/200/200`} alt="Profile" className="w-full h-full object-cover" />
+            <UserAvatar iconName={user?.profileIcon} size={48} className="w-full h-full" />
             <div 
               onClick={() => setIsEditProfileOpen(true)}
               className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -294,9 +295,6 @@ export default function Profile() {
                           <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                         );
                       })}
-                      {(!room.tags || room.tags.length === 0) && (
-                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -353,9 +351,6 @@ export default function Profile() {
                           <span key={tag} className={`px-2.5 py-1 ${color.bg} rounded-xl text-[10px] font-medium ${color.text}`}>#{tag}</span>
                         );
                       })}
-                      {(!room.tags || room.tags.length === 0) && (
-                        <span className={`px-2.5 py-1 ${getChipColor('jamroom').bg} rounded-xl text-[10px] font-medium ${getChipColor('jamroom').text}`}>#jamroom</span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -386,7 +381,7 @@ export default function Profile() {
               {editError && <p className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded-lg">{editError}</p>}
               <div className="flex justify-center mb-6">
                 <div className="w-24 h-24 bg-[#222222] rounded-full border-2 border-[#9146FF] overflow-hidden relative group cursor-pointer">
-                  <img src={`https://picsum.photos/seed/${auth.currentUser?.uid || 'user'}/200/200`} alt="Profile" className="w-full h-full object-cover opacity-50" />
+                  <UserAvatar iconName={user?.profileIcon} size={48} className="w-full h-full opacity-50" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Edit2 size={24} className="text-[#9146FF]" />
                   </div>

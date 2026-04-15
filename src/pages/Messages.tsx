@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from 'fire
 import { db, auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Disc3 } from 'lucide-react';
+import { UserAvatar } from '../components/UserAvatar';
 
 export default function Messages() {
   const [conversations, setConversations] = useState<any[]>([]);
@@ -82,7 +83,7 @@ export default function Messages() {
               className="hover-gradient-border flex items-center gap-4 p-4 bg-[#111111] rounded-xl transition-colors cursor-pointer"
             >
               <div className="w-12 h-12 rounded-full bg-[#222222] overflow-hidden flex-shrink-0">
-                <img src={`https://picsum.photos/seed/${conv.otherUser.uid || conv.otherUser.id}/100/100`} alt={conv.otherUser.name} className="w-full h-full object-cover" />
+                <UserAvatar iconName={conv.otherUser.profileIcon} size={24} className="w-full h-full" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
