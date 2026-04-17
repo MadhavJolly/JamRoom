@@ -138,7 +138,7 @@ export default function PublicProfile() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <Disc3 size={32} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+        <Disc3 size={32} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
       </div>
     );
   }
@@ -157,8 +157,10 @@ export default function PublicProfile() {
             <div className="w-24 h-24 bg-[#222222] rounded-full mb-4 border-2 border-[#222222] overflow-hidden">
               <UserAvatar iconName={user?.profileIcon} size={48} className="w-full h-full" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight" style={{ color: user?.nameColor || '#E4E3E0' }}>{user?.name || 'Unknown'}</h1>
-            <p className="text-[#666666] text-sm font-medium mt-1 font-mono">@{user?.name?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}</p>
+            <h1 className="text-3xl font-bold tracking-tight font-mono text-[#5D00FF]" style={{ color: user?.nameColor ? user.nameColor : '#5D00FF' }}>
+              @{user?.name?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}
+            </h1>
+            <p className="text-[#666666] text-sm font-medium mt-1">{user?.name || 'Unknown'}</p>
           </div>
           
           {auth.currentUser && auth.currentUser.uid !== id && (
@@ -167,8 +169,8 @@ export default function PublicProfile() {
                 onClick={handleToggleFollow}
                 className={`px-6 py-2 rounded-full font-bold text-sm transition-colors ${
                   isFollowing 
-                    ? 'bg-[#111111] border border-[#222222] text-[#E4E3E0] hover:border-[#9146FF]' 
-                    : 'bg-[#9146FF] text-white hover:bg-[#772ce8]'
+                    ? 'bg-[#111111] border border-[#222222] text-[#E4E3E0] hover:border-[#5D00FF]' 
+                    : 'bg-[#5D00FF] text-white hover:bg-[#4A00CC]'
                 }`}
               >
                 {isFollowing ? 'Following' : 'Follow'}
@@ -203,14 +205,14 @@ export default function PublicProfile() {
             className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'created' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
           >
             Created Rooms
-            {activeTab === 'created' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+            {activeTab === 'created' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
           </button>
           <button 
             onClick={() => setActiveTab('liked')}
             className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'liked' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
           >
             Liked Rooms
-            {activeTab === 'liked' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+            {activeTab === 'liked' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
           </button>
         </div>
 
@@ -227,7 +229,7 @@ export default function PublicProfile() {
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                       <div>
-                        <h3 className="text-xl font-bold tracking-tight group-hover:text-[#9146FF] transition-colors">{room.name}</h3>
+                        <h3 className="text-xl font-bold tracking-tight  transition-colors">{room.name}</h3>
                         <p className="text-[#666666] text-xs mt-1 font-medium">{room.isPrivate ? 'Private Room' : 'Public Room'}</p>
                         {room.description && (
                           <p className="text-[#E4E3E0] text-sm mt-3 line-clamp-2">
@@ -275,7 +277,7 @@ export default function PublicProfile() {
                     <div className="flex items-center gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-xl font-bold tracking-tight group-hover:text-[#9146FF] transition-colors">{room.name}</h3>
+                          <h3 className="text-xl font-bold tracking-tight  transition-colors">{room.name}</h3>
                           {room.isPrivate && <Lock size={14} className="text-[#666666]" />}
                         </div>
                         <p 
@@ -294,7 +296,7 @@ export default function PublicProfile() {
                         )}
                       </div>
                     </div>
-                    <Heart size={20} className="fill-[#9146FF] text-[#9146FF]" />
+                    <Heart size={20} className="fill-[#5D00FF] text-[#5D00FF]" />
                   </div>
                   
                   <div className="flex justify-between items-end mt-2">

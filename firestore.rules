@@ -115,10 +115,11 @@ service cloud.firestore {
 
     function isValidPresence() {
       let data = request.resource.data;
-      return hasRequiredFields(['userId', 'userName', 'joinedAt']) &&
+      return hasRequiredFields(['userId', 'userName']) &&
              data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
-             data.joinedAt is timestamp;
+             (!('joinedAt' in data) || data.joinedAt is timestamp) &&
+             (!('lastSeen' in data) || data.lastSeen is timestamp);
     }
 
     function isValidConversation() {
@@ -147,22 +148,39 @@ service cloud.firestore {
              data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
              data.actorId is string && data.actorId.size() > 0 && data.actorId.size() < 100 &&
              data.actorName is string && data.actorName.size() > 0 && data.actorName.size() < 100 &&
-             data.type in ['like', 'message'] &&
+             data.type in ['like', 'message', 'follow'] &&
              data.targetId is string && data.targetId.size() > 0 && data.targetId.size() < 100 &&
              isValidOptionalString('targetName', 0, 100) &&
              data.read is bool &&
              data.createdAt is timestamp;
     }
 
+    function isValidAppPresence() {
+      let data = request.resource.data;
+      return hasRequiredFields(['userId', 'lastSeen']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.lastSeen is timestamp;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
     
+    match /app_presence/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidAppPresence() && request.resource.data.userId == request.auth.uid && userId == request.auth.uid;
+      allow delete: if isAuthenticated() && userId == request.auth.uid;
+    }
+    
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && isValidUser() && uidUnchanged();
-      allow update: if isOwner(userId) && isValidUser() && uidNotModified() && 
-                    request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if isAuthenticated() && isValidUser() && uidNotModified() && 
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    (
+                      isOwner(userId) ||
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers'])
+                    );
     }
     
     match /rooms/{roomId} {
@@ -212,7 +230,16 @@ service cloud.firestore {
       
       match /messages/{messageId} {
         allow read: if isAuthenticated();
-        allow create: if isAuthenticated() && isValidMessage() && request.resource.data.userId == request.auth.uid;
+        allow create: if isAuthenticated() && isValidMessage() && (
+          request.resource.data.userId == request.auth.uid ||
+          (
+            request.resource.data.userId == 'system' &&
+            (
+              get(/databases/$(database)/documents/rooms/$(roomId)).data.creatorId == request.auth.uid || 
+              ('moderators' in get(/databases/$(database)/documents/rooms/$(roomId)).data && request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.moderators)
+            )
+          )
+        );
         allow update: if false; // Messages cannot be edited
         allow delete: if isAuthenticated() && (
           get(/databases/$(database)/documents/rooms/$(roomId)).data.creatorId == request.auth.uid || 

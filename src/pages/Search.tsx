@@ -87,7 +87,7 @@ export default function Search() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search rooms, users, tracks..." 
-            className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] text-sm p-3.5 pl-11 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
+            className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] text-sm p-3.5 pl-11 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors"
           />
         </div>
       </header>
@@ -118,7 +118,7 @@ export default function Search() {
         
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <Disc3 size={32} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+            <Disc3 size={32} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
           </div>
         ) : filteredRooms.length === 0 ? (
           <div className="text-center py-10 text-[#666666]">
@@ -135,7 +135,7 @@ export default function Search() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xl font-bold tracking-tight group-hover:text-[#9146FF] transition-colors truncate">
+                      <h3 className="text-xl font-bold tracking-tight  transition-colors truncate">
                         {room.name}
                       </h3>
                       {room.isPrivate && (
@@ -187,8 +187,8 @@ export default function Search() {
           <div className="bg-[#111111] border border-[#222222] rounded-xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#9146FF]/10 flex items-center justify-center">
-                  <Lock size={20} className="text-[#9146FF]" />
+                <div className="w-10 h-10 rounded-full bg-[#5D00FF]/10 flex items-center justify-center">
+                  <Lock size={20} className="text-[#5D00FF]" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold tracking-tight">Private Room</h2>
@@ -216,7 +216,7 @@ export default function Search() {
                     setError("");
                   }}
                   placeholder="JR-XXXX"
-                  className="w-full bg-[#0A0A0A] border border-[#222222] rounded-xl p-4 text-lg font-bold tracking-widest text-[#9146FF] placeholder:text-[#333333] focus:border-[#9146FF] focus:outline-none transition-colors text-center"
+                  className="w-full bg-[#0A0A0A] border border-[#222222] rounded-xl p-4 text-lg font-bold tracking-widest text-[#5D00FF] placeholder:text-[#333333] focus:border-[#5D00FF] focus:outline-none transition-colors text-center"
                 />
                 {error && (
                   <p className="text-xs text-[#FF3366] mt-2 font-medium">{error}</p>
@@ -226,7 +226,7 @@ export default function Search() {
               <button 
                 onClick={handleJoinPrivate}
                 disabled={!inviteCode.trim()}
-                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl hover:bg-[#4A00CC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
               >
                 Join Room
               </button>

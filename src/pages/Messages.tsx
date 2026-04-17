@@ -66,7 +66,7 @@ export default function Messages() {
 
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Disc3 size={48} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+          <Disc3 size={48} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
         </div>
       ) : conversations.length === 0 ? (
         <div className="text-center py-20 text-[#666666]">

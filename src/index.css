@@ -4,8 +4,8 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
-  --color-primary: #9146FF;
-  --color-neon-green: #9146FF;
+  --color-primary: #5D00FF;
+  --color-neon-green: #5D00FF;
   --color-neon-blue: #00FFCC;
   --color-neon-pink: #FF00CC;
   --color-neon-orange: #FF9900;
@@ -31,7 +31,7 @@ body {
 }
 
 .bg-gradient-highlight {
-  background: linear-gradient(90deg, #9146FF, #00FFCC, #FF00CC, #9146FF);
+  background: linear-gradient(90deg, #5D00FF, #00FFCC, #FF00CC, #5D00FF);
   background-size: 300% 300%;
 }
 
@@ -46,7 +46,7 @@ body {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(90deg, #9146FF, #00FFCC, #FF00CC, #9146FF);
+  background: linear-gradient(90deg, #5D00FF, #00FFCC, #FF00CC, #5D00FF);
   background-size: 300% 300%;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;

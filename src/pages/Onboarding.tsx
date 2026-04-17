@@ -257,7 +257,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
     <div className="min-h-screen bg-[#0A0A0A] text-[#E4E3E0] flex flex-col p-6 font-sans">
       <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full animate-in fade-in duration-300">
         <div className="flex justify-center mb-8">
-          <Disc3 size={48} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+          <Disc3 size={48} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
         </div>
 
         {view !== 'login' && (
@@ -265,7 +265,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             <div className="flex items-center justify-between relative">
               <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-[#222222] -z-10" />
               <div 
-                className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-[#9146FF] -z-10 transition-all duration-500"
+                className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-[#5D00FF] -z-10 transition-all duration-500"
                 style={{ width: view === 'signup' ? '0%' : view === 'complete_profile' ? '50%' : '100%' }}
               />
               
@@ -281,8 +281,8 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                 return (
                   <div key={s.id} className="flex flex-col items-center gap-2">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                      isCompleted ? 'bg-[#9146FF] text-white' : 
-                      isCurrent ? 'bg-[#111111] border-2 border-[#9146FF] text-[#9146FF]' : 
+                      isCompleted ? 'bg-[#5D00FF] text-white' : 
+                      isCurrent ? 'bg-[#111111] border-2 border-[#5D00FF] text-[#5D00FF]' : 
                       'bg-[#111111] border-2 border-[#222222] text-[#666666]'
                     }`}>
                       {isCompleted ? <Check size={16} /> : s.step}
@@ -313,7 +313,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   placeholder="Email address" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full bg-[#111111] border ${fieldErrors.email ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${fieldErrors.email ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                   disabled={isLoading}
                 />
                 {fieldErrors.email && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.email}</p>}
@@ -324,7 +324,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   placeholder="Password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full bg-[#111111] border ${fieldErrors.password ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${fieldErrors.password ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                   disabled={isLoading}
                 />
                 {fieldErrors.password && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.password}</p>}
@@ -335,7 +335,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
               <button className="text-[#666666] text-sm hover:text-[#E4E3E0] transition-colors font-medium">Forgot password?</button>
             </div>
 
-            <button onClick={handleLogin} disabled={isLoading} className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mb-6 disabled:opacity-50">
+            <button onClick={handleLogin} disabled={isLoading} className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl hover:bg-[#4A00CC] transition-colors mb-6 disabled:opacity-50">
               {isLoading ? "Logging in..." : "Log In"}
             </button>
 
@@ -350,7 +350,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             </button>
 
             <p className="text-center text-sm text-[#666666]">
-              Don't have an account? <button onClick={() => { setView('signup'); setError(""); }} className="text-[#9146FF] font-medium hover:underline ml-1">Sign up</button>
+              Don't have an account? <button onClick={() => { setView('signup'); setError(""); }} className="text-[#5D00FF] font-medium hover:underline ml-1">Sign up</button>
             </p>
           </div>
         )}
@@ -369,7 +369,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   placeholder="Full Name" 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={`w-full bg-[#111111] border ${fieldErrors.name ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${fieldErrors.name ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                   disabled={isLoading}
                 />
                 {fieldErrors.name && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.name}</p>}
@@ -380,7 +380,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   placeholder="Email address" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className={`w-full bg-[#111111] border ${fieldErrors.email ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${fieldErrors.email ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                   disabled={isLoading}
                 />
                 {fieldErrors.email && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.email}</p>}
@@ -391,7 +391,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   placeholder="Password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full bg-[#111111] border ${fieldErrors.password ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${fieldErrors.password ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                   disabled={isLoading}
                 />
                 {fieldErrors.password && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.password}</p>}
@@ -402,19 +402,19 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   placeholder="Confirm Password" 
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full bg-[#111111] border ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${fieldErrors.confirmPassword ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                   disabled={isLoading}
                 />
                 {fieldErrors.confirmPassword && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.confirmPassword}</p>}
               </div>
             </div>
 
-            <button onClick={handleSignupContinue} className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mb-6">
+            <button onClick={handleSignupContinue} className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl hover:bg-[#4A00CC] transition-colors mb-6">
               Continue
             </button>
 
             <p className="text-center text-sm text-[#666666]">
-              Already have an account? <button onClick={() => { setView('login'); setError(""); }} className="text-[#9146FF] font-medium hover:underline ml-1">Log in</button>
+              Already have an account? <button onClick={() => { setView('login'); setError(""); }} className="text-[#5D00FF] font-medium hover:underline ml-1">Log in</button>
             </p>
           </div>
         )}
@@ -433,7 +433,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                   placeholder="Full Name" 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={`w-full bg-[#111111] border ${fieldErrors.name ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${fieldErrors.name ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                   disabled={isLoading}
                 />
                 {fieldErrors.name && <p className="text-red-500 text-[10px] ml-1 font-medium">{fieldErrors.name}</p>}
@@ -450,7 +450,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
                         onClick={() => setProfileIcon(iconData.name)}
                         className={`p-3 rounded-xl flex justify-center items-center transition-all ${
                           profileIcon === iconData.name
-                            ? 'bg-[#9146FF] text-white border border-[#9146FF]'
+                            ? 'bg-[#5D00FF] text-white border border-[#5D00FF]'
                             : 'bg-[#111111] text-[#666666] border border-[#222222] hover:border-[#666666] hover:text-[#E4E3E0]'
                         }`}
                       >
@@ -470,7 +470,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
               setFieldErrors({});
               setError("");
               setView('genres');
-            }} className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mb-6">
+            }} className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl hover:bg-[#4A00CC] transition-colors mb-6">
               Continue
             </button>
           </div>
@@ -503,7 +503,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
             <button 
               onClick={handleCompleteSignup} 
               disabled={selectedGenres.length < 3 || isLoading}
-              className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl disabled:opacity-50 flex justify-center items-center gap-2 transition-all hover:bg-[#772ce8]"
+              className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl disabled:opacity-50 flex justify-center items-center gap-2 transition-all hover:bg-[#4A00CC]"
             >
               {isLoading ? "Saving..." : <><>Enter Jam Rooms</> <ArrowRight size={20} /></>}
             </button>

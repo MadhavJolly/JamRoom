@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Share2, Plus, Search as SearchIcon, X, Check, Disc3, MoreVertical, ExternalLink, Trash2, Settings, GripVertical, MessageSquare, Send, Copy, Heart, Crown } from "lucide-react";
+import { ArrowLeft, Play, Share2, Plus, Search as SearchIcon, X, Check, Disc3, MoreVertical, ExternalLink, Trash2, Settings, GripVertical, MessageSquare, Send, Copy, Heart, Crown, Sparkles, Lock, Unlock, Users } from "lucide-react";
 import { UserAvatar } from "../components/UserAvatar";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { collection, doc, getDoc, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, arrayUnion, arrayRemove, getDocs, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, orderBy, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, arrayUnion, arrayRemove, getDocs, writeBatch } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { useRoomContext } from "../RoomContext";
 
@@ -15,6 +15,7 @@ interface Track {
   artist: string;
   platform: string;
   url: string;
+  note?: string;
   addedBy: string;
   addedByName?: string;
   addedByProfileIcon?: string;
@@ -66,8 +67,18 @@ const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, 
     <div 
       ref={setNodeRef} 
       style={style}
-      className={`flex items-center gap-4 p-3 border border-[#222222] bg-[#111111] rounded-xl hover-gradient-border transition-colors group ${isDragging ? 'opacity-50 border-[#9146FF]' : ''}`}
+      className={`flex items-center relative gap-4 p-3 border border-[#222222] bg-[#111111] rounded-xl hover-gradient-border transition-colors group ${isDragging ? 'opacity-50 border-[#5D00FF]' : ''}`}
     >
+      {/* Fun Bubble Note */}
+      {track.note && (
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-300 z-20">
+          <div className="relative bg-[#5D00FF] text-white px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap shadow-[0_4px_20px_rgba(93,0,255,0.4)]">
+            "{track.note}"
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#5D00FF] rotate-45" />
+          </div>
+        </div>
+      )}
+
       {isCreator && (
         <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-[#666666] hover:text-[#E4E3E0] p-1 -ml-2">
           <GripVertical size={16} />
@@ -86,13 +97,20 @@ const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, 
           </div>
         )}
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Play size={20} className="text-[#9146FF] ml-1" />
+          <Play size={20} className="text-[#5D00FF] ml-1" />
         </div>
       </div>
       
       <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onSelect(track)}>
-        <h4 className="font-semibold truncate text-sm">{track.title}</h4>
-        <p className="text-[#666666] text-xs truncate mt-0.5">{track.artist}</p>
+        <div className="flex items-center gap-2 mb-0.5">
+          <h4 className="font-semibold truncate text-sm">{track.title}</h4>
+          {track.addedByName && (
+            <span className="text-[10px] text-[#666666] bg-[#222222] border border-[#333333] px-2 py-0.5 rounded-full flex-shrink-0 truncate max-w-[100px]">
+              + {track.addedByName}
+            </span>
+          )}
+        </div>
+        <p className="text-[#666666] text-xs truncate">{track.artist}</p>
       </div>
       
       <div className="flex items-center gap-3 mr-2 relative">
@@ -119,7 +137,7 @@ const SortableTrackItem: React.FC<{ track: Track, onSelect: (t: Track) => void, 
                     });
                   }
                 }}
-                className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 transition-colors ${hasReacted ? 'bg-[#222222] border border-[#9146FF]' : 'bg-[#111111] border border-[#222222] hover:bg-[#222222]'}`}
+                className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 transition-colors ${hasReacted ? 'bg-[#222222] border border-[#5D00FF]' : 'bg-[#111111] border border-[#222222] hover:bg-[#222222]'}`}
               >
                 <span>{emoji}</span>
                 <span className="text-[#E4E3E0] font-mono">{count}</span>
@@ -191,7 +209,7 @@ const renderMessageText = (text: string) => {
           href={part} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-[#9146FF] hover:underline break-all"
+          className="text-[#5D00FF] hover:underline break-all"
         >
           {part}
         </a>
@@ -202,8 +220,9 @@ const renderMessageText = (text: string) => {
 };
 
 import { getChipColor } from '../utils/colors';
-import { toast } from 'sonner';
+import { toast } from '../utils/toast';
 import { Filter } from 'bad-words';
+import { getRecommendedTracks } from '../services/aiRecommendations';
 
 export default function Room() {
   const { id } = useParams();
@@ -225,6 +244,10 @@ export default function Room() {
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(true);
   
+  // Track Note Concept
+  const [trackToNote, setTrackToNote] = useState<any>(null);
+  const [trackNote, setTrackNote] = useState("");
+
   // New Modals State
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [isRoomSettingsOpen, setIsRoomSettingsOpen] = useState(false);
@@ -236,6 +259,9 @@ export default function Room() {
   const [editDescription, setEditDescription] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [isConfirmingClearChat, setIsConfirmingClearChat] = useState(false);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [isRecommending, setIsRecommending] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
   const [roomTracks, setRoomTracks] = useState<Track[]>([]);
   const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
@@ -292,20 +318,31 @@ export default function Room() {
     }
   }, [messages, activeTab]);
 
-  // Presence State
+  // Presence & Members State
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
+  const [roomMembers, setRoomMembers] = useState<any[]>([]);
 
   useEffect(() => {
     if (auth.currentUser && id && id !== 'new' && currentUserProfile) {
       const presenceRef = doc(db, "rooms", id, "presence", auth.currentUser.uid);
-      setDoc(presenceRef, {
-        userId: auth.currentUser.uid,
-        userName: currentUserProfile.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Anonymous",
-        nameColor: currentUserProfile.nameColor || "#E4E3E0",
-        profileIcon: currentUserProfile.profileIcon || "Smile",
-        isFounder: currentUserProfile.isFounder || false,
-        joinedAt: serverTimestamp()
-      }, { merge: true }).catch(console.error);
+      
+      const updatePresence = () => {
+        setDoc(presenceRef, {
+          userId: auth.currentUser!.uid,
+          userName: currentUserProfile.name || auth.currentUser!.displayName || auth.currentUser!.email?.split('@')[0] || "Anonymous",
+          nameColor: currentUserProfile.nameColor || "#E4E3E0",
+          profileIcon: currentUserProfile.profileIcon || "Smile",
+          isFounder: currentUserProfile.isFounder || false,
+          lastSeen: serverTimestamp()
+        }, { merge: true }).catch(console.error);
+      };
+      
+      updatePresence();
+      const interval = setInterval(updatePresence, 3 * 60 * 1000); // 3 mins
+
+      return () => {
+        clearInterval(interval);
+      }
     }
   }, [currentUserProfile, id]);
 
@@ -354,10 +391,27 @@ export default function Room() {
       const presenceCollection = collection(db, "rooms", id, "presence");
       unsubscribePresence = onSnapshot(presenceCollection, (snapshot) => {
         const users: any[] = [];
-        snapshot.forEach((doc) => users.push(doc.data()));
+        const fiveMinsAgo = Date.now() - 5 * 60 * 1000;
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.lastSeen) {
+            const time = data.lastSeen.toMillis ? data.lastSeen.toMillis() : data.lastSeen.seconds * 1000;
+            if (time > fiveMinsAgo) users.push(data);
+          } else {
+            users.push(data);
+          }
+        });
         setActiveUsers(users);
       });
     }
+
+    // Members Logic (users who liked the room)
+    const membersQuery = query(collection(db, "users"), where("likedRooms", "array-contains", id));
+    const unsubscribeMembers = onSnapshot(membersQuery, (snapshot) => {
+      const membersData: any[] = [];
+      snapshot.forEach(doc => membersData.push({ uid: doc.id, ...doc.data() }));
+      setRoomMembers(membersData);
+    });
 
     const tracksRef = collection(db, "rooms", id, "tracks");
     const qTracks = query(tracksRef, orderBy("order", "asc"));
@@ -388,6 +442,7 @@ export default function Room() {
       unsubscribeTracks();
       unsubscribeMessages();
       unsubscribePresence();
+      unsubscribeMembers();
       if (auth.currentUser && id && id !== 'new') {
         const presenceRef = doc(db, "rooms", id, "presence", auth.currentUser.uid);
         deleteDoc(presenceRef).catch(console.error);
@@ -419,23 +474,24 @@ export default function Room() {
     }
   };
 
-  const handleAddTrack = async (track: any) => {
-    if (!id || id === 'new' || !auth.currentUser) return;
+  const submitTrackIdea = async () => {
+    if (!id || id === 'new' || !auth.currentUser || !trackToNote || !trackNote.trim()) return;
     
-    if (!addedTracks.includes(track.url)) {
+    if (!addedTracks.includes(trackToNote.url)) {
       setIsAddingTrack(true);
       const newTrackId = Date.now().toString();
       const trackRef = doc(db, "rooms", id, "tracks", newTrackId);
       
       const newTrackData = {
         id: newTrackId,
-        title: track.title,
-        artist: track.artist,
-        platform: track.platform,
-        url: track.url,
-        image: track.image || "",
+        title: trackToNote.title,
+        artist: trackToNote.artist,
+        platform: trackToNote.platform,
+        url: trackToNote.url,
+        image: trackToNote.image || "",
+        note: trackNote.trim(),
         addedBy: auth.currentUser.uid,
-        addedByName: currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "User",
+        addedByName: currentUserProfile?.name ? `@${currentUserProfile.name.toLowerCase().replace(/\s+/g, '_')}` : (auth.currentUser.displayName ? `@${auth.currentUser.displayName.toLowerCase().replace(/\s+/g, '_')}` : auth.currentUser.email?.split('@')[0] || "User"),
         addedByProfileIcon: currentUserProfile?.profileIcon || "Smile",
         addedAt: serverTimestamp(),
         order: -1, // Will be placed at the top
@@ -458,11 +514,16 @@ export default function Room() {
           id: messageId,
           userId: "system",
           userName: "System",
-          text: `${currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "User"} added a track: ${track.title} by ${track.artist}`,
+          text: `${currentUserProfile?.name ? `@${currentUserProfile.name.toLowerCase().replace(/\s+/g, '_')}` : (auth.currentUser.displayName ? `@${auth.currentUser.displayName.toLowerCase().replace(/\s+/g, '_')}` : auth.currentUser.email?.split('@')[0] || "User")} shared a track!`,
           isSystem: true,
           createdAt: serverTimestamp()
         });
+        
+        setAddedTracks(prev => [...prev, trackToNote.url]);
         toast.success("Track added successfully!");
+        setTrackToNote(null);
+        setTrackNote("");
+        setIsAddTrackOpen(false);
       } catch (error) {
         console.error("Error adding track:", error);
         toast.error("Failed to add track.");
@@ -472,6 +533,11 @@ export default function Room() {
     } else {
       toast.error("Track already added to this room.");
     }
+  };
+
+  const handleAddTrack = (track: any) => {
+    setTrackToNote(track);
+    setTrackNote("");
   };
 
   const handleRemoveTrack = async () => {
@@ -752,10 +818,13 @@ export default function Room() {
             <h1 className="text-2xl font-bold tracking-tight">
               {isPrivate ? 'New Private Room' : (room?.name || 'Loading...')}
             </h1>
-            {room?.isPrivate && (
-              <span className="px-2.5 py-0.5 bg-[#222222] text-xs font-medium text-[#E4E3E0] rounded-full">
-                Private
-              </span>
+            {id === 'new' ? null : room?.isPrivate ? (
+              <Lock size={18} className="text-red-400 mx-1 flex-shrink-0" title="Private" />
+            ) : (
+              <Unlock size={18} className="text-green-500/80 mx-1 flex-shrink-0" title="Public" />
+            )}
+            {room?.isCollaborative && (
+              <Users size={18} className="text-[#00CCFF] flex-shrink-0" title="Collaborative" />
             )}
           </div>
           {room?.description && (
@@ -772,7 +841,7 @@ export default function Room() {
         {room?.isPrivate && room?.shareCode && (
           <div className="mt-4 p-4 bg-[#111111] rounded-xl border border-[#222222] flex justify-between items-center">
             <span className="text-sm text-[#666666] font-medium">Invite Code:</span>
-            <span className="text-base font-bold tracking-wider text-[#9146FF]">{room.shareCode}</span>
+            <span className="text-base font-bold tracking-wider text-[#5D00FF]">{room.shareCode}</span>
           </div>
         )}
 
@@ -783,7 +852,7 @@ export default function Room() {
             className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'tracks' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
           >
             Tracks
-            {activeTab === 'tracks' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+            {activeTab === 'tracks' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
           </button>
           <button 
             onClick={() => setActiveTab('chat')}
@@ -791,7 +860,7 @@ export default function Room() {
           >
             Chat
             <span className="bg-[#222222] text-[#E4E3E0] text-[10px] px-1.5 py-0.5 rounded-full">{messages.length}</span>
-            {activeTab === 'chat' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+            {activeTab === 'chat' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
           </button>
           <button 
             onClick={() => setActiveTab('users')}
@@ -799,7 +868,7 @@ export default function Room() {
           >
             Users
             <span className="bg-[#222222] text-[#E4E3E0] text-[10px] px-1.5 py-0.5 rounded-full">{activeUsers.length}</span>
-            {activeTab === 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+            {activeTab === 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
           </button>
         </div>
       </header>
@@ -822,7 +891,7 @@ export default function Room() {
             <div className="mb-4 flex-shrink-0">
               <button 
                 onClick={() => setIsAddTrackOpen(true)}
-                className="w-full bg-[#9146FF] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#772ce8] transition-colors shadow-[0_0_20px_rgba(145,70,255,0.15)]"
+                className="w-full bg-[#5D00FF] text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-[#4A00CC] transition-colors shadow-[0_0_20px_rgba(93, 0, 255,0.15)]"
               >
                 <Plus size={20} /> Add Track
               </button>
@@ -855,15 +924,77 @@ export default function Room() {
         </div>
 
         {/* Chat Section */}
-        <div className={`w-full lg:w-96 flex flex-col border-l-0 lg:border-l border-[#222222] lg:pl-6 ${(!isChatOpen && activeTab !== 'chat') ? 'hidden' : (activeTab === 'chat' ? 'flex' : 'hidden lg:flex')} overflow-hidden relative`}>
+        <div className={`w-full lg:w-96 flex flex-col border-l-0 lg:border-l border-[#222222] lg:pl-6 ${activeTab === 'chat' ? 'flex' : 'hidden'} ${isChatOpen && activeTab !== 'users' ? 'lg:flex' : 'lg:hidden'} overflow-hidden relative`}>
           <div className="flex items-center justify-between mb-4 hidden lg:flex flex-shrink-0">
-            <h2 className="text-sm font-medium text-[#666666]">Chat ({messages.length})</h2>
+            <div className="flex gap-6">
+              <button 
+                onClick={() => setActiveTab('chat')} 
+                className={`text-sm font-medium transition-colors relative pb-1 ${activeTab !== 'users' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
+              >
+                Chat ({messages.length})
+                {activeTab !== 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
+              </button>
+              <button 
+                onClick={() => setActiveTab('users')} 
+                className={`text-sm font-medium transition-colors relative pb-1 ${activeTab === 'users' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
+              >
+                Users
+                {activeTab === 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
+              </button>
+            </div>
+            <button onClick={() => setIsChatOpen(false)} className="text-[#666666] hover:text-[#E4E3E0] transition-colors -mt-1">
+              <X size={18} />
+            </button>
           </div>
+          
+          {isCreator && messages.length > 0 && activeTab !== 'users' && (
+            <div className="flex justify-end mb-2 px-4 lg:px-0 flex-shrink-0">
+               {isConfirmingClearChat ? (
+                 <div className="flex items-center gap-3 bg-[#111111] border border-red-500/30 px-3 py-1.5 rounded-lg text-xs">
+                   <span className="text-[#E4E3E0]">Clear for everyone?</span>
+                   <button onClick={async () => {
+                     try {
+                        const chunkSize = 15;
+                        for (let i = 0; i < messages.length; i += chunkSize) {
+                          const chunk = messages.slice(i, i + chunkSize);
+                          const batch = writeBatch(db);
+                          chunk.forEach(m => {
+                            batch.delete(doc(db, "rooms", id!, "messages", m.id));
+                          });
+                          await batch.commit();
+                        }
+                        
+                        const messageId = Date.now().toString();
+                        await setDoc(doc(db, "rooms", id!, "messages", messageId), {
+                          id: messageId,
+                          userId: "system",
+                          userName: "System",
+                          text: "Chat history was cleared by the room creator.",
+                          isSystem: true,
+                          createdAt: serverTimestamp()
+                        });
+                        setIsConfirmingClearChat(false);
+                        toast.success("Chat history cleared");
+                     } catch(e) {
+                         console.error(e);
+                         toast.error("Failed to clear chat");
+                     }
+                   }} className="text-red-500 font-bold hover:underline">Yes</button>
+                   <button onClick={() => setIsConfirmingClearChat(false)} className="text-[#666666] hover:text-[#E4E3E0]">No</button>
+                 </div>
+               ) : (
+                 <button onClick={() => setIsConfirmingClearChat(true)} className="flex items-center gap-1.5 text-xs text-[#666666] hover:text-red-500 transition-colors px-2 py-1 rounded-md hover:bg-[#111111]">
+                   <Trash2 size={12} /> Clear Chat
+                 </button>
+               )}
+            </div>
+          )}
+
           <div className="flex-1 flex flex-col pb-24 lg:pb-24 overflow-hidden">
             {room?.pinnedMessage && (
-              <div className="bg-[#9146FF]/10 border border-[#9146FF]/30 rounded-xl p-3 mb-4 flex items-start gap-3 flex-shrink-0">
+              <div className="bg-[#5D00FF]/10 border border-[#5D00FF]/30 rounded-xl p-3 mb-4 flex items-start gap-3 flex-shrink-0">
                 <div className="mt-0.5">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-[#9146FF] bg-[#9146FF]/20 px-1.5 py-0.5 rounded font-mono">Pinned</span>
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-[#5D00FF] bg-[#5D00FF]/20 px-1.5 py-0.5 rounded font-mono">Pinned</span>
                 </div>
                 <p className="text-sm text-[#E4E3E0] flex-1">{renderMessageText(room.pinnedMessage)}</p>
                 {canModerate && (
@@ -888,7 +1019,7 @@ export default function Room() {
                   return (
                     <div key={msg.id} className="flex justify-center my-2">
                       <div className="bg-[#111111] border border-[#222222] rounded-full px-4 py-1.5 flex items-center gap-2">
-                        <span className="text-xs text-[#9146FF] font-medium">System</span>
+                        <span className="text-xs text-[#5D00FF] font-medium">System</span>
                         <span className="text-xs text-[#666666]">•</span>
                         <span className="text-xs text-[#E4E3E0]">{msg.text}</span>
                         <span className="text-[10px] text-[#666666] ml-2 font-mono">
@@ -914,12 +1045,12 @@ export default function Room() {
                           @{msg.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}
                         </span>
                         {msg.isFounder && (
-                          <span className="text-[#9146FF] flex items-center" title="Platform Founder">
-                            <Crown size={14} className="fill-[#9146FF]" />
+                          <span className="text-[#5D00FF] flex items-center" title="Platform Founder">
+                            <Crown size={14} className="fill-[#5D00FF]" />
                           </span>
                         )}
                         {msg.userId === room?.creatorId && !msg.isFounder && (
-                          <span className="bg-[#9146FF]/20 text-[#9146FF] text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold font-mono">
+                          <span className="bg-[#5D00FF]/20 text-[#5D00FF] text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-bold font-mono">
                             Creator
                           </span>
                         )}
@@ -939,7 +1070,7 @@ export default function Room() {
                               console.error("Error pinning", e);
                             }
                           }}
-                          className="text-[#666666] hover:text-[#9146FF] text-xs font-medium"
+                          className="text-[#666666] hover:text-[#5D00FF] text-xs font-medium"
                         >
                           Pin
                         </button>
@@ -973,12 +1104,12 @@ export default function Room() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Say something..." 
-                className="flex-1 bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3.5 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors text-sm"
+                className="flex-1 bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3.5 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors text-sm"
               />
               <button 
                 type="submit"
                 disabled={!newMessage.trim()}
-                className="w-12 h-12 flex items-center justify-center bg-[#9146FF] text-white rounded-xl disabled:opacity-50 hover:bg-[#772ce8] transition-colors flex-shrink-0"
+                className="w-12 h-12 flex items-center justify-center bg-[#5D00FF] text-white rounded-xl disabled:opacity-50 hover:bg-[#4A00CC] transition-colors flex-shrink-0"
               >
                 <Send size={20} />
               </button>
@@ -987,27 +1118,73 @@ export default function Room() {
         </div>
 
         {/* Users Section */}
-        <div className={`w-full lg:w-96 flex flex-col border-l-0 lg:border-l border-[#222222] lg:pl-6 ${activeTab === 'users' ? 'flex' : 'hidden'} overflow-hidden`}>
+        <div className={`w-full lg:w-96 flex flex-col border-l-0 lg:border-l border-[#222222] lg:pl-6 ${activeTab === 'users' ? 'flex' : 'hidden'} ${isChatOpen && activeTab === 'users' ? 'lg:flex' : 'lg:hidden'} overflow-hidden`}>
+          <div className="flex items-center justify-between mb-4 hidden lg:flex flex-shrink-0">
+            <div className="flex gap-6">
+              <button 
+                onClick={() => setActiveTab('chat')} 
+                className={`text-sm font-medium transition-colors relative pb-1 ${activeTab !== 'users' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
+              >
+                Chat ({messages.length})
+                {activeTab !== 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
+              </button>
+              <button 
+                onClick={() => setActiveTab('users')} 
+                className={`text-sm font-medium transition-colors relative pb-1 ${activeTab === 'users' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
+              >
+                Users
+                {activeTab === 'users' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
+              </button>
+            </div>
+            <button onClick={() => setIsChatOpen(false)} className="text-[#666666] hover:text-[#E4E3E0] transition-colors -mt-1">
+              <X size={18} />
+            </button>
+          </div>
           <div className="flex-1 flex flex-col pb-24 md:pb-6 overflow-y-auto">
             <div className="space-y-4">
-              {activeUsers.map((user) => (
-                <div key={user.userId} className="flex items-center justify-between p-3 bg-[#111111] rounded-xl border border-[#222222]">
+              {Array.from(new Set([...activeUsers.map((u: any) => u.userId), ...roomMembers.map((m: any) => m.uid)]))
+                .map(uid => {
+                   const activeObj = activeUsers.find((u: any) => u.userId === uid);
+                   const memberObj = roomMembers.find((m: any) => m.uid === uid);
+                   return {
+                     userId: uid,
+                     userName: activeObj?.userName || memberObj?.name || 'User',
+                     nameColor: activeObj?.nameColor || memberObj?.nameColor || '#E4E3E0',
+                     profileIcon: activeObj?.profileIcon || memberObj?.profileIcon || 'Smile',
+                     isFounder: activeObj?.isFounder || memberObj?.isFounder || false,
+                     isOnline: !!activeObj
+                   };
+                })
+                .sort((a, b) => {
+                  if (a.isOnline === b.isOnline) return a.userName.localeCompare(b.userName);
+                  return a.isOnline ? -1 : 1;
+                })
+                .map((user) => (
+                <div key={user.userId} className={`flex items-center justify-between p-3 rounded-xl border border-[#222222] transition-colors ${user.isOnline ? 'bg-[#111111]' : 'bg-[#0A0A0A] opacity-60'}`}>
                   <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/user/${user.userId}`)}>
-                    <div className="w-10 h-10 rounded-full bg-[#222222] overflow-hidden">
+                    <div className="w-10 h-10 rounded-full bg-[#222222] overflow-hidden relative">
                       <UserAvatar iconName={user.profileIcon} size={24} className="w-full h-full" />
+                      {user.isOnline && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#111111] rounded-full" />
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-1">
-                        <p className="font-bold text-sm font-mono" style={{ color: user.nameColor || '#E4E3E0' }}>@{user.userName?.toLowerCase()?.replace(/\s+/g, '_') || 'user'}</p>
+                        <p className="font-bold text-sm text-[#5D00FF] font-mono" style={{ color: user.nameColor ? user.nameColor : '#5D00FF' }}>
+                          @{user.userName.toLowerCase().replace(/\s+/g, '_')}
+                        </p>
                         {user.isFounder && (
-                          <span className="text-[#9146FF]" title="Platform Founder">
-                            <Crown size={14} className="fill-[#9146FF]" />
+                          <span className="text-[#5D00FF]" title="Platform Founder">
+                            <Crown size={14} className="fill-[#5D00FF]" />
                           </span>
                         )}
                       </div>
+                      <div className="flex gap-2 mb-0.5">
+                        <p className="text-[10px] text-[#666666] font-medium tracking-wide">{user.userName}</p>
+                      </div>
                       <div className="flex gap-2 mt-0.5">
                         {user.userId === room?.creatorId && !user.isFounder && (
-                          <span className="text-[10px] text-[#9146FF] font-medium uppercase tracking-wider font-mono">Creator</span>
+                          <span className="text-[10px] text-[#5D00FF] font-medium uppercase tracking-wider font-mono">Creator</span>
                         )}
                         {room?.moderators?.includes(user.userId) && (
                           <span className="text-[10px] text-[#00CCFF] font-medium uppercase tracking-wider font-mono">Mod</span>
@@ -1084,7 +1261,7 @@ export default function Room() {
               onClick={handleShareRoom}
               className="w-full bg-[#111111] border border-[#222222] hover-gradient-border text-[#E4E3E0] font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              {copiedRoomLink ? <Check size={18} className="text-[#9146FF]" /> : <Copy size={18} />}
+              {copiedRoomLink ? <Check size={18} className="text-[#5D00FF]" /> : <Copy size={18} />}
               {copiedRoomLink ? "Copied!" : "Copy Link"}
             </button>
           </div>
@@ -1138,15 +1315,15 @@ export default function Room() {
                 }}
                 className="w-full flex items-center gap-3 p-4 hover:bg-[#111111] rounded-xl transition-colors text-left"
               >
-                <Heart size={20} className={currentUserProfile?.likedTracks?.includes(`${id}_${selectedTrack.id}`) ? "fill-[#9146FF] text-[#9146FF]" : "text-[#E4E3E0]"} />
+                <Heart size={20} className={currentUserProfile?.likedTracks?.includes(`${id}_${selectedTrack.id}`) ? "fill-[#5D00FF] text-[#5D00FF]" : "text-[#E4E3E0]"} />
                 <span className="font-medium">{currentUserProfile?.likedTracks?.includes(`${id}_${selectedTrack.id}`) ? "Unlike Track" : "Like Track"}</span>
               </button>
               <a href={selectedTrack.url} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-3 p-4 hover:bg-[#111111] rounded-xl transition-colors text-left">
-                <ExternalLink size={20} className="text-[#9146FF]" />
+                <ExternalLink size={20} className="text-[#5D00FF]" />
                 <span className="font-medium">Open in {selectedTrack.platform}</span>
               </a>
               <button onClick={handleCopyLink} className="w-full flex items-center gap-3 p-4 hover:bg-[#111111] rounded-xl transition-colors text-left">
-                {copiedLink ? <Check size={20} className="text-[#9146FF]" /> : <Share2 size={20} className="text-[#E4E3E0]" />}
+                {copiedLink ? <Check size={20} className="text-[#5D00FF]" /> : <Share2 size={20} className="text-[#E4E3E0]" />}
                 <span className="font-medium">{copiedLink ? "Copied!" : "Copy Link"}</span>
               </button>
               {isCreator && (
@@ -1181,7 +1358,7 @@ export default function Room() {
                   type="text" 
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
+                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors"
                 />
               </div>
 
@@ -1191,13 +1368,13 @@ export default function Room() {
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   placeholder="Add a short description..."
-                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors resize-none h-24"
+                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors resize-none h-24"
                 />
               </div>
 
               <div>
                 <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Genre Tags (Max 5)</label>
-                <div className="bg-[#111111] border border-[#222222] rounded-xl p-2 focus-within:border-[#9146FF] transition-colors">
+                <div className="bg-[#111111] border border-[#222222] rounded-xl p-2 focus-within:border-[#5D00FF] transition-colors">
                   <div className="flex flex-wrap gap-2 mb-2">
                     {editTags.map(tag => (
                       <span key={tag} className="px-2.5 py-1 bg-[#222222] rounded-xl text-xs font-medium text-[#E4E3E0] flex items-center gap-1">
@@ -1205,7 +1382,7 @@ export default function Room() {
                         <button onClick={() => {
                           const newTags = editTags.filter(t => t !== tag);
                           setEditTags(newTags);
-                        }} className="hover:text-[#9146FF]"><X size={12} /></button>
+                        }} className="hover:text-[#5D00FF]"><X size={12} /></button>
                       </span>
                     ))}
                   </div>
@@ -1245,71 +1422,14 @@ export default function Room() {
                     toast.error("Failed to save room settings");
                   }
                 }}
-                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors shadow-[0_0_20px_rgba(145,70,255,0.15)]"
+                className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl hover:bg-[#4A00CC] transition-colors shadow-[0_0_20px_rgba(93,0,255,0.15)]"
               >
                 Save Changes
               </button>
 
-              <div className="pt-4 border-t border-[#222222]">
-                {isConfirmingClearChat ? (
-                  <div className="bg-[#111111] border border-red-500/50 rounded-xl p-4">
-                    <p className="text-sm text-[#E4E3E0] mb-4 text-center">Are you sure you want to clear the chat? This cannot be undone.</p>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setIsConfirmingClearChat(false)}
-                        className="flex-1 bg-[#222222] text-[#E4E3E0] font-bold py-3 rounded-xl hover:bg-[#333333] transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          try {
-                            const messagesRef = collection(db, "rooms", id!, "messages");
-                            const messagesSnapshot = await getDocs(messagesRef);
-                            const batch = writeBatch(db);
-                            messagesSnapshot.docs.forEach((doc) => {
-                              batch.delete(doc.ref);
-                            });
-                            await batch.commit();
-                            
-                            // Add system message indicating chat was cleared
-                            const messageId = Date.now().toString();
-                            await setDoc(doc(db, "rooms", id!, "messages", messageId), {
-                              id: messageId,
-                              userId: "system",
-                              userName: "System",
-                              text: "Chat history was cleared by the room creator.",
-                              isSystem: true,
-                              createdAt: serverTimestamp()
-                            });
-                            
-                            setIsConfirmingClearChat(false);
-                            setIsRoomSettingsOpen(false);
-                            toast.success("Chat history cleared");
-                          } catch (error) {
-                            console.error("Error clearing chat:", error);
-                            toast.error("Failed to clear chat");
-                          }
-                        }}
-                        className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition-colors"
-                      >
-                        Clear Chat
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setIsConfirmingClearChat(true)}
-                    className="w-full border border-[#222222] text-[#E4E3E0] font-bold py-4 rounded-xl hover:bg-[#111111] transition-colors flex items-center justify-center gap-2"
-                  >
-                    <MessageSquare size={20} /> Clear Chat
-                  </button>
-                )}
-              </div>
-
               <button 
                 onClick={handleDeleteRoom}
-                className="w-full border border-red-500/50 text-red-500 font-bold py-4 rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
+                className="w-full border border-red-500/50 text-red-500 font-bold py-4 rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2 mt-8"
               >
                 <Trash2 size={20} /> Delete Room
               </button>
@@ -1324,11 +1444,56 @@ export default function Room() {
           <div className="bg-[#0A0A0A] border border-[#222222] w-full max-w-md h-[85vh] sm:h-[600px] flex flex-col rounded-t-xl sm:rounded-xl animate-in slide-in-from-bottom-10 sm:slide-in-from-bottom-0 duration-200">
             <div className="p-5 border-b border-[#222222] flex justify-between items-center">
               <h2 className="text-xl font-bold tracking-tight">Add Track</h2>
-              <button onClick={() => setIsAddTrackOpen(false)} className="text-[#666666] hover:text-[#E4E3E0] p-1 rounded-full hover:bg-[#111111] transition-colors">
+              <button onClick={() => { setIsAddTrackOpen(false); setTrackToNote(null); }} className="text-[#666666] hover:text-[#E4E3E0] p-1 rounded-full hover:bg-[#111111] transition-colors">
                 <X size={24} />
               </button>
             </div>
             
+            {trackToNote ? (
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
+                <div className="w-24 h-24 rounded-lg overflow-hidden mb-4 shadow-xl border border-[#222222]">
+                   {trackToNote.image ? (
+                     <img src={trackToNote.image} alt="Track artwork" className="w-full h-full object-cover" />
+                   ) : (
+                     <div className="w-full h-full bg-[#111111] flex items-center justify-center">
+                       <Disc3 size={32} className="text-[#666666]" />
+                     </div>
+                   )}
+                </div>
+                <h3 className="text-xl font-bold text-center text-[#E4E3E0] mb-1">{trackToNote.title}</h3>
+                <p className="text-sm text-[#666666] mb-8">{trackToNote.artist}</p>
+
+                <div className="w-full relative">
+                  <div className="absolute -top-3 left-4 bg-[#0A0A0A] px-2 text-xs font-bold text-[#5D00FF] z-10">
+                    Why add this track?
+                  </div>
+                  <textarea
+                    autoFocus
+                    value={trackNote}
+                    onChange={e => setTrackNote(e.target.value)}
+                    placeholder="Share a thought, a memory, or why you love this track..."
+                    className="w-full bg-[#111111] border-2 border-[#222222] focus:border-[#5D00FF] rounded-xl p-4 text-[#E4E3E0] h-32 resize-none outline-none transition-colors"
+                  />
+                </div>
+                
+                <div className="mt-auto w-full pt-6 flex gap-3">
+                  <button 
+                    onClick={() => setTrackToNote(null)}
+                    className="flex-1 py-3.5 rounded-xl font-bold bg-[#111111] text-[#E4E3E0] hover:bg-[#222222] transition-colors border border-[#222222]"
+                  >
+                    Back
+                  </button>
+                  <button 
+                    onClick={submitTrackIdea}
+                    disabled={!trackNote.trim() || isAddingTrack}
+                    className="flex-[2] py-3.5 rounded-xl font-bold bg-[#5D00FF] text-white hover:bg-[#4A00CC] transition-colors disabled:opacity-50 shadow-[0_0_20px_rgba(93,0,255,0.15)] flex items-center justify-center gap-2"
+                  >
+                    {isAddingTrack ? <Disc3 size={20} className="animate-spin" /> : "Share with Room"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="p-4 border-b border-[#222222]">
               <div className="relative mb-4">
                 <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#666666]" size={20} />
@@ -1337,7 +1502,7 @@ export default function Room() {
                   placeholder="Search or paste a link..." 
                   value={searchQuery}
                   onChange={handleSearchInput}
-                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3.5 pl-11 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors"
+                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3.5 pl-11 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors"
                 />
               </div>
               
@@ -1363,7 +1528,7 @@ export default function Room() {
 
             {isFetchingLink ? (
               <div className="flex-1 flex flex-col items-center justify-center text-[#666666] animate-in fade-in">
-                <Disc3 size={32} className="animate-[spin_2s_linear_infinite] mb-4 text-[#9146FF]" />
+                <Disc3 size={32} className="animate-[spin_2s_linear_infinite] mb-4 text-[#5D00FF]" />
                 <p className="text-sm font-medium">Fetching track data...</p>
               </div>
             ) : (
@@ -1406,6 +1571,8 @@ export default function Room() {
                 })}
               </div>
             )}
+           </>
+          )}
           </div>
         </div>
       )}

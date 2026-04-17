@@ -81,7 +81,7 @@ export default function Activity() {
 
       {isLoading ? (
         <div className="flex-1 flex justify-center items-center">
-          <Disc3 size={48} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+          <Disc3 size={48} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
         </div>
       ) : notifications.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50">
@@ -103,7 +103,7 @@ export default function Activity() {
                   : 'hover-gradient-border bg-[#1A1A1A]'
               }`}
             >
-              <div className={`p-3 rounded-full flex-shrink-0 ${notif.type === 'like' ? 'bg-pink-500/10 text-pink-500' : notif.type === 'follow' ? 'bg-[#9146FF]/10 text-[#9146FF]' : 'bg-blue-500/10 text-blue-500'}`}>
+              <div className={`p-3 rounded-full flex-shrink-0 ${notif.type === 'like' ? 'bg-pink-500/10 text-pink-500' : notif.type === 'follow' ? 'bg-[#5D00FF]/10 text-[#5D00FF]' : 'bg-blue-500/10 text-blue-500'}`}>
                 {notif.type === 'like' ? <Heart size={20} className="fill-current" /> : notif.type === 'follow' ? <UserPlus size={20} className="fill-current" /> : <MessageCircle size={20} className="fill-current" />}
               </div>
               
@@ -121,7 +121,7 @@ export default function Activity() {
               </div>
               
               {!notif.read && (
-                <div className="w-2 h-2 rounded-full bg-[#9146FF] mt-2 flex-shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-[#5D00FF] mt-2 flex-shrink-0" />
               )}
             </div>
           ))}

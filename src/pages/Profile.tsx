@@ -2,13 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Settings, X, Heart, Edit2, Disc3 } from "lucide-react";
 import { signOut } from "firebase/auth";
-import { doc, getDoc, updateDoc, collection, query, where, onSnapshot, arrayRemove, arrayUnion, increment, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, getDocs, writeBatch, updateDoc, collection, query, where, onSnapshot, arrayRemove, arrayUnion, increment, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 import { getChipColor } from "../utils/colors";
 import { UserAvatar } from "../components/UserAvatar";
 
-import { toast } from 'sonner';
+import { toast } from '../utils/toast';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -170,6 +170,22 @@ export default function Profile() {
           bio: editBio,
           nameColor: editNameColor
         });
+
+        // Also update the 'creatorName' for all rooms this user created
+        if (editName !== user.name) {
+          try {
+            const roomsQuery = query(collection(db, "rooms"), where("creatorId", "==", auth.currentUser.uid));
+            const roomSnaps = await getDocs(roomsQuery);
+            const batch = writeBatch(db);
+            roomSnaps.forEach((d) => {
+               batch.update(doc(db, "rooms", d.id), { creatorName: editName });
+            });
+            await batch.commit();
+          } catch (batchErr) {
+            console.error("Failed to batch update rooms:", batchErr);
+          }
+        }
+
         setUser({ ...user, name: editName, bio: editBio, nameColor: editNameColor });
         setIsEditProfileOpen(false);
         toast.success("Profile updated successfully");
@@ -187,17 +203,19 @@ export default function Profile() {
     <div className="p-6 font-sans pb-24 md:pb-6 h-full flex flex-col">
       <header className="flex justify-between items-start mb-8 pt-4">
         <div>
-          <div className="w-24 h-24 bg-[#222222] rounded-full mb-4 border-2 border-[#9146FF] overflow-hidden relative group">
+          <div className="w-24 h-24 bg-[#222222] rounded-full mb-4 border-2 border-[#5D00FF] overflow-hidden relative group">
             <UserAvatar iconName={user?.profileIcon} size={48} className="w-full h-full" />
             <div 
               onClick={() => setIsEditProfileOpen(true)}
               className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
             >
-              <Edit2 size={24} className="text-[#9146FF]" />
+              <Edit2 size={24} className="text-[#5D00FF]" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">{user?.name || "Loading..."}</h1>
-          <p className="text-[#9146FF] text-sm font-medium mt-1 font-mono">@{user?.name?.toLowerCase()?.replace(/\s+/g, '_') || "loading"}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[#5D00FF] font-mono">
+            @{user?.name?.toLowerCase()?.replace(/\s+/g, '_') || "loading"}
+          </h1>
+          <p className="text-[#666666] text-sm font-medium mt-1">{user?.name || "Loading..."}</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -241,21 +259,21 @@ export default function Profile() {
           className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'created' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
         >
           Created Rooms
-          {activeTab === 'created' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+          {activeTab === 'created' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
         </button>
         <button 
           onClick={() => setActiveTab('liked')}
           className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'liked' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
         >
           Liked Rooms
-          {activeTab === 'liked' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+          {activeTab === 'liked' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
         </button>
       </div>
 
       {/* Tab Content */}
       {isLoading ? (
         <div className="flex justify-center py-10">
-          <Disc3 size={32} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+          <Disc3 size={32} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
         </div>
       ) : (
         <div className="space-y-4 pb-24 md:pb-6">
@@ -270,7 +288,7 @@ export default function Profile() {
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                       <div>
-                        <h3 className="text-xl font-bold tracking-tight group-hover:text-[#9146FF] transition-colors">{room.name}</h3>
+                        <h3 className="text-xl font-bold tracking-tight  transition-colors">{room.name}</h3>
                         <p className="text-[#666666] text-xs mt-1 font-medium">{room.isPrivate ? 'Private Room' : 'Public Room'}</p>
                         {room.description && (
                           <p className="text-[#E4E3E0] text-sm mt-3 line-clamp-2">
@@ -283,7 +301,7 @@ export default function Profile() {
                       onClick={(e) => handleToggleLike(e, room)}
                       className="p-2 -mr-2 -mt-2 hover:scale-110 transition-transform z-10"
                     >
-                      <Heart size={20} className={user?.likedRooms?.includes(room.id) ? "fill-[#9146FF] text-[#9146FF]" : "text-[#666666] hover:text-[#E4E3E0]"} />
+                      <Heart size={20} className={user?.likedRooms?.includes(room.id) ? "fill-[#5D00FF] text-[#5D00FF]" : "text-[#666666] hover:text-[#E4E3E0]"} />
                     </button>
                   </div>
                   
@@ -318,7 +336,7 @@ export default function Profile() {
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                       <div>
-                        <h3 className="text-xl font-bold tracking-tight group-hover:text-[#9146FF] transition-colors">{room.name}</h3>
+                        <h3 className="text-xl font-bold tracking-tight  transition-colors">{room.name}</h3>
                         <p 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -339,7 +357,7 @@ export default function Profile() {
                       onClick={(e) => handleToggleLike(e, room)}
                       className="p-2 -mr-2 -mt-2 hover:scale-110 transition-transform z-10"
                     >
-                      <Heart size={20} className="fill-[#9146FF] text-[#9146FF]" />
+                      <Heart size={20} className="fill-[#5D00FF] text-[#5D00FF]" />
                     </button>
                   </div>
                   
@@ -380,10 +398,10 @@ export default function Profile() {
             <div className="space-y-6">
               {editError && <p className="text-red-500 text-sm text-center bg-red-500/10 p-2 rounded-lg">{editError}</p>}
               <div className="flex justify-center mb-6">
-                <div className="w-24 h-24 bg-[#222222] rounded-full border-2 border-[#9146FF] overflow-hidden relative group cursor-pointer">
+                <div className="w-24 h-24 bg-[#222222] rounded-full border-2 border-[#5D00FF] overflow-hidden relative group cursor-pointer">
                   <UserAvatar iconName={user?.profileIcon} size={48} className="w-full h-full opacity-50" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Edit2 size={24} className="text-[#9146FF]" />
+                    <Edit2 size={24} className="text-[#5D00FF]" />
                   </div>
                 </div>
               </div>
@@ -397,7 +415,7 @@ export default function Profile() {
                     setEditName(e.target.value);
                     if (editError) setEditError("");
                   }}
-                  className={`w-full bg-[#111111] border ${editError ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${editError ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                 />
               </div>
 
@@ -407,7 +425,7 @@ export default function Profile() {
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
                   rows={3}
-                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors resize-none"
+                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors resize-none"
                 />
               </div>
 
@@ -429,7 +447,7 @@ export default function Profile() {
               <button 
                 onClick={handleSaveProfile}
                 disabled={isSaving}
-                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors mt-4 disabled:opacity-50"
+                className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl hover:bg-[#4A00CC] transition-colors mt-4 disabled:opacity-50"
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
@@ -459,7 +477,7 @@ export default function Profile() {
                   </div>
                   <div className="flex justify-between items-center border-b border-[#222222] pb-4">
                     <span className="text-sm font-medium">Password</span>
-                    <button className="text-[#9146FF] text-xs font-medium border border-[#9146FF] px-3 py-1.5 rounded-xl hover:bg-[#9146FF]/10 transition-colors">Change</button>
+                    <button className="text-[#5D00FF] text-xs font-medium border border-[#5D00FF] px-3 py-1.5 rounded-xl hover:bg-[#5D00FF]/10 transition-colors">Change</button>
                   </div>
                 </div>
               </div>
@@ -467,7 +485,7 @@ export default function Profile() {
               <div>
                 <h3 className="text-xs font-medium text-[#666666] uppercase tracking-wider mb-4 font-mono">Appearance</h3>
                 <div className="flex gap-2">
-                  <button className="flex-1 py-2.5 rounded-xl border border-[#9146FF] text-[#9146FF] bg-[#9146FF]/10 text-xs font-medium">Dark</button>
+                  <button className="flex-1 py-2.5 rounded-xl border border-[#5D00FF] text-[#5D00FF] bg-[#5D00FF]/10 text-xs font-medium">Dark</button>
                   <button className="flex-1 py-2.5 rounded-xl border border-[#222222] text-[#666666] hover:border-[#E4E3E0] bg-[#111111] text-xs font-medium">Pitch Black</button>
                 </div>
               </div>

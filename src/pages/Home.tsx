@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, Disc3, Lock, X, Bell } from "lucide-react";
+import { Heart, Disc3, Lock, Unlock, Users, X, Bell } from "lucide-react";
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, increment, getDoc, arrayUnion, arrayRemove, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, auth } from "../firebase";
 
 import { getChipColor } from "../utils/colors";
 
-import { toast } from 'sonner';
+import { toast } from '../utils/toast';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -16,6 +16,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [filter, setFilter] = useState<'new' | 'trending' | 'following'>('new');
+  const [onlineUsersCount, setOnlineUsersCount] = useState(0);
   
   // Private Room Access State
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -75,15 +76,55 @@ export default function Home() {
         unsubscribeNotifications = onSnapshot(notifQuery, (snapshot) => {
           setHasUnreadNotifications(!snapshot.empty);
         });
+
+        // App Presence logic
+        const presenceRef = doc(db, "app_presence", user.uid);
+        setDoc(presenceRef, {
+          userId: user.uid,
+          lastSeen: serverTimestamp()
+        }, { merge: true }).catch(console.error);
+
+        // Ping presence every 3 mins
+        const presenceInterval = setInterval(() => {
+          setDoc(presenceRef, {
+            userId: user.uid,
+            lastSeen: serverTimestamp()
+          }, { merge: true }).catch(console.error);
+        }, 3 * 60 * 1000);
+
+        return () => {
+          clearInterval(presenceInterval);
+        };
       } else {
         if (unsubscribeUser) unsubscribeUser();
         if (unsubscribeNotifications) unsubscribeNotifications();
       }
     });
+
+    const activePresenceRef = collection(db, "app_presence");
+    // We'll update the listener locally or listen globally
+    const qPresence = query(activePresenceRef, orderBy("lastSeen", "desc"));
+    const unsubscribeOnlineUsers = onSnapshot(qPresence, (snapshot) => {
+      // Find how many were seen in the last 5 minutes
+      const fiveMinsAgo = Date.now() - 5 * 60 * 1000;
+      let count = 0;
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.lastSeen) {
+          const time = data.lastSeen.toMillis ? data.lastSeen.toMillis() : data.lastSeen.seconds * 1000;
+          if (time > fiveMinsAgo) count++;
+        } else {
+          count++; // Optimistically count if just created
+        }
+      });
+      setOnlineUsersCount(count);
+    });
+
     return () => {
       unsubscribeAuth();
       if (unsubscribeUser) unsubscribeUser();
       if (unsubscribeNotifications) unsubscribeNotifications();
+      unsubscribeOnlineUsers();
     };
   }, []);
 
@@ -172,7 +213,13 @@ export default function Home() {
       <header className="mb-6 pt-4 flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">The Feed</h1>
-          <p className="text-[#666666] text-sm">Curated underground sounds.</p>
+          <div className="flex items-center gap-3">
+            <p className="text-[#666666] text-sm">Curated underground sounds.</p>
+            <div className="flex items-center gap-1.5 bg-[#111111] px-2.5 py-1 rounded-full border border-[#222222]">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs font-medium text-[#E4E3E0]">{onlineUsersCount} Online</span>
+            </div>
+          </div>
         </div>
         <button 
           onClick={() => navigate('/activity')}
@@ -180,7 +227,7 @@ export default function Home() {
         >
           <Bell size={20} className="text-[#E4E3E0]" />
           {hasUnreadNotifications && (
-            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#9146FF] border-2 border-[#0A0A0A] rounded-full"></span>
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-[#5D00FF] border-2 border-[#0A0A0A] rounded-full"></span>
           )}
         </button>
       </header>
@@ -191,27 +238,27 @@ export default function Home() {
           className={`pb-3 text-sm font-medium transition-colors relative ${filter === 'new' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
         >
           New
-          {filter === 'new' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+          {filter === 'new' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
         </button>
         <button 
           onClick={() => setFilter('trending')}
           className={`pb-3 text-sm font-medium transition-colors relative ${filter === 'trending' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
         >
           Trending
-          {filter === 'trending' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+          {filter === 'trending' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
         </button>
         <button 
           onClick={() => setFilter('following')}
           className={`pb-3 text-sm font-medium transition-colors relative ${filter === 'following' ? 'text-[#E4E3E0]' : 'text-[#666666] hover:text-[#E4E3E0]'}`}
         >
           Following
-          {filter === 'following' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#9146FF]" />}
+          {filter === 'following' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#5D00FF]" />}
         </button>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Disc3 size={48} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+          <Disc3 size={48} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
         </div>
       ) : displayedRooms.length === 0 ? (
         <div className="text-center py-20 text-[#666666]">
@@ -229,22 +276,32 @@ export default function Home() {
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-bold tracking-tight group-hover:text-[#9146FF] transition-colors truncate">
+                    <h3 className="text-xl font-bold tracking-tight  transition-colors truncate">
                       {room.name}
                     </h3>
-                    {room.isPrivate && (
-                      <Lock size={16} className="text-[#666666] flex-shrink-0" />
+                    {room.isPrivate ? (
+                      <Lock size={16} className="text-red-400 mx-1 flex-shrink-0" title="Private" />
+                    ) : (
+                      <Unlock size={16} className="text-green-500/80 mx-1 flex-shrink-0" title="Public" />
+                    )}
+                    {room.isCollaborative && (
+                      <Users size={16} className="text-[#00CCFF] flex-shrink-0" title="Collaborative" />
                     )}
                   </div>
-                  <p 
+                  <div 
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/user/${room.creatorId}`);
                     }}
-                    className="text-[#666666] text-xs mt-1 font-medium hover:text-[#E4E3E0] transition-colors inline-block cursor-pointer"
+                    className="mt-1 cursor-pointer inline-flex flex-col group/creator"
                   >
-                    By <span className="font-mono">@{room.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}</span>
-                  </p>
+                    <span className="text-[#5D00FF] text-sm font-bold transition-colors line-clamp-1 group-hover/creator:underline">
+                      @{room.creatorName?.toLowerCase()?.replace(/\s+/g, '_') || 'unknown'}
+                    </span>
+                    <span className="text-[#666666] text-[10px] font-mono tracking-wide">
+                      {room.creatorName || 'Unknown User'}
+                    </span>
+                  </div>
                   {room.description && (
                     <p className="text-[#E4E3E0] text-sm mt-3 line-clamp-2">
                       {room.description}
@@ -257,7 +314,7 @@ export default function Home() {
                 >
                   <Heart 
                     size={20} 
-                    className={likedRooms.includes(room.id) ? "fill-[#9146FF] text-[#9146FF]" : "text-[#666666] hover:text-[#E4E3E0]"} 
+                    className={likedRooms.includes(room.id) ? "fill-[#5D00FF] text-[#5D00FF]" : "text-[#666666] hover:text-[#E4E3E0]"} 
                   />
                 </button>
               </div>
@@ -290,8 +347,8 @@ export default function Home() {
           <div className="bg-[#111111] border border-[#222222] rounded-xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#9146FF]/10 flex items-center justify-center">
-                  <Lock size={20} className="text-[#9146FF]" />
+                <div className="w-10 h-10 rounded-full bg-[#5D00FF]/10 flex items-center justify-center">
+                  <Lock size={20} className="text-[#5D00FF]" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold tracking-tight">Private Room</h2>
@@ -319,7 +376,7 @@ export default function Home() {
                     setError("");
                   }}
                   placeholder="JR-XXXX"
-                  className="w-full bg-[#0A0A0A] border border-[#222222] rounded-xl p-4 text-lg font-bold tracking-widest text-[#9146FF] placeholder:text-[#333333] focus:border-[#9146FF] focus:outline-none transition-colors text-center"
+                  className="w-full bg-[#0A0A0A] border border-[#222222] rounded-xl p-4 text-lg font-bold tracking-widest text-[#5D00FF] placeholder:text-[#333333] focus:border-[#5D00FF] focus:outline-none transition-colors text-center"
                 />
                 {error && (
                   <p className="text-xs text-[#FF3366] mt-2 font-medium">{error}</p>
@@ -329,7 +386,7 @@ export default function Home() {
               <button 
                 onClick={handleJoinPrivate}
                 disabled={!inviteCode.trim()}
-                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl hover:bg-[#772ce8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl hover:bg-[#4A00CC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
               >
                 Join Room
               </button>
@@ -337,6 +394,13 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* Version Footer (Mobile) */}
+      <div className="md:hidden mt-8 mb-4 px-2 opacity-50">
+        <p className="text-[10px] text-[#666666] font-mono">
+          v1.0 (BETA) - Jam Rooms is currently in testing. Things may break! 
+        </p>
+      </div>
+
     </div>
   );
 }

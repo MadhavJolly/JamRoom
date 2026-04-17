@@ -142,7 +142,7 @@ export default function Conversation() {
       <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 md:pb-6">
         {isLoading ? (
           <div className="flex justify-center py-10">
-            <Disc3 size={32} className="text-[#9146FF] animate-[spin_4s_linear_infinite]" />
+            <Disc3 size={32} className="text-[#5D00FF] animate-[spin_4s_linear_infinite]" />
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center py-10 text-[#666666]">
@@ -169,7 +169,7 @@ export default function Conversation() {
                     <div 
                       className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
                         isMe 
-                          ? 'bg-[#9146FF] text-white rounded-br-none' 
+                          ? 'bg-[#5D00FF] text-white rounded-br-none' 
                           : 'bg-[#1A1A1A] text-[#E4E3E0] border border-[#222222] rounded-bl-none'
                       }`}
                     >
@@ -212,12 +212,12 @@ export default function Conversation() {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..." 
-            className="flex-1 bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors text-sm"
+            className="flex-1 bg-[#111111] border border-[#222222] text-[#E4E3E0] p-3 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors text-sm"
           />
           <button 
             type="submit"
             disabled={!newMessage.trim()}
-            className="bg-[#9146FF] text-white p-3 rounded-xl disabled:opacity-50 hover:bg-[#772ce8] transition-colors flex-shrink-0"
+            className="bg-[#5D00FF] text-white p-3 rounded-xl disabled:opacity-50 hover:bg-[#4A00CC] transition-colors flex-shrink-0"
           >
             <Send size={20} />
           </button>

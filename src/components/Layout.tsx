@@ -43,7 +43,7 @@ export default function Layout() {
         isPrivate,
         isCollaborative,
         creatorId: auth.currentUser.uid,
-        creatorName: userProfile?.name || auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Anonymous',
+        creatorName: userProfile?.name ? `@${userProfile.name.toLowerCase().replace(/\s+/g, '_')}` : (auth.currentUser.displayName ? `@${auth.currentUser.displayName.toLowerCase().replace(/\s+/g, '_')}` : auth.currentUser.email?.split('@')[0] || 'Anonymous'),
         createdAt: serverTimestamp(),
         likes: 0,
         tags: tags,
@@ -96,15 +96,17 @@ export default function Layout() {
     <div className="flex flex-col md:flex-row h-screen bg-[#0A0A0A] text-[#E4E3E0] font-sans">
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-[#000000] border-t border-[#222222] flex items-center justify-around px-2 z-40 md:relative md:w-64 md:h-screen md:border-t-0 md:border-r md:flex-col md:justify-start md:pt-8 md:px-4">
         
-        <div className="hidden md:flex items-center gap-2 mb-10 px-4 w-full">
-          <Disc3 size={28} className="text-[#9146FF]" />
-          <span className="font-bold text-xl tracking-tight">Jam Rooms</span>
+        <div className="hidden md:flex flex-col mb-10 px-4 w-full">
+          <div className="flex items-center gap-2">
+            <Disc3 size={28} className="text-[#5D00FF]" />
+            <span className="font-bold text-xl tracking-tight">Jam Rooms</span>
+          </div>
         </div>
 
         <div className="flex md:flex-col items-center md:items-start justify-around md:justify-start w-full md:gap-2 h-full md:h-auto">
           <button 
             onClick={() => setIsCreateModalOpen(true)}
-            className="order-3 md:order-none relative -top-5 md:static md:w-full md:h-12 md:mb-4 rounded-full md:rounded-xl bg-[#9146FF] text-white flex items-center justify-center md:justify-start md:px-4 md:gap-3 shadow-[0_0_15px_rgba(145,70,255,0.3)] hover:scale-105 md:hover:scale-100 md:hover:bg-[#772ce8] transition-all active:scale-95 w-14 h-14 flex-shrink-0"
+            className="order-3 md:order-none relative -top-5 md:static md:w-full md:h-12 md:mb-4 rounded-full md:rounded-xl bg-[#5D00FF] text-white flex items-center justify-center md:justify-start md:px-4 md:gap-3 shadow-[0_0_15px_rgba(93,0,255,0.3)] hover:scale-105 md:hover:scale-100 md:hover:bg-[#4A00CC] transition-all active:scale-95 w-14 h-14 flex-shrink-0"
           >
             <Plus size={28} strokeWidth={3} className="md:w-5 md:h-5" />
             <span className="hidden md:block font-bold">Create Room</span>
@@ -113,6 +115,14 @@ export default function Layout() {
           <NavItem to="/" icon={<Home size={24} />} label="Feed" className="order-1 md:order-none" />
           <NavItem to="/search" icon={<Search size={24} />} label="Search" className="order-2 md:order-none" />
           <NavItem to="/profile" icon={<User size={24} />} label="Profile" className="order-5 md:order-none" />
+        </div>
+
+        <div className="hidden md:block mt-auto pb-6 px-4">
+          <p className="text-[10px] text-[#666666] leading-tight opacity-70 hover:opacity-100 transition-opacity">
+            v1.0 (Beta Build)<br/>
+            Running bug tests & active<br/>
+            development. Things may break!
+          </p>
         </div>
       </nav>
 
@@ -129,8 +139,8 @@ export default function Layout() {
               className="bg-[#111111] border border-[#222222] rounded-xl p-3 flex items-center justify-between shadow-lg cursor-pointer hover:bg-[#1A1A1A] transition-colors animate-in slide-in-from-bottom-2 pointer-events-auto"
             >
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-10 h-10 rounded-full bg-[#9146FF]/10 flex items-center justify-center flex-shrink-0">
-                  <Disc3 size={20} className="text-[#9146FF]" />
+                <div className="w-10 h-10 rounded-full bg-[#5D00FF]/10 flex items-center justify-center flex-shrink-0">
+                  <Disc3 size={20} className="text-[#5D00FF]" />
                 </div>
                 <div className="overflow-hidden">
                   <h4 className="font-semibold text-sm truncate">{room.name}</h4>
@@ -145,7 +155,7 @@ export default function Layout() {
                     e.stopPropagation();
                     navigate(`/room/${room.id}`);
                   }}
-                  className="p-2 text-[#E4E3E0] hover:text-[#9146FF] transition-colors"
+                  className="p-2 text-[#E4E3E0] hover:text-[#5D00FF] transition-colors"
                 >
                   <Maximize2 size={18} />
                 </button>
@@ -187,7 +197,7 @@ export default function Layout() {
                     if (error) setError("");
                   }}
                   placeholder="e.g. Late Night Dub" 
-                  className={`w-full bg-[#111111] border ${error ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors`}
+                  className={`w-full bg-[#111111] border ${error ? 'border-red-500' : 'border-[#222222]'} text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors`}
                 />
               </div>
 
@@ -197,18 +207,18 @@ export default function Layout() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Add a short description..." 
-                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#9146FF] transition-colors resize-none h-24"
+                  className="w-full bg-[#111111] border border-[#222222] text-[#E4E3E0] p-4 rounded-xl focus:outline-none focus:border-[#5D00FF] transition-colors resize-none h-24"
                 />
               </div>
 
               <div>
                 <label className="block text-[#666666] text-xs font-medium uppercase tracking-wider mb-2 font-mono">Genre Tags (Max 5)</label>
-                <div className="bg-[#111111] border border-[#222222] rounded-xl p-2 focus-within:border-[#9146FF] transition-colors">
+                <div className="bg-[#111111] border border-[#222222] rounded-xl p-2 focus-within:border-[#5D00FF] transition-colors">
                   <div className="flex flex-wrap gap-2 mb-2">
                     {tags.map(tag => (
                       <span key={tag} className="px-2.5 py-1 bg-[#222222] rounded-xl text-xs font-medium text-[#E4E3E0] flex items-center gap-1">
                         #{tag}
-                        <button onClick={() => removeTag(tag)} className="hover:text-[#9146FF]"><X size={12} /></button>
+                        <button onClick={() => removeTag(tag)} className="hover:text-[#5D00FF]"><X size={12} /></button>
                       </span>
                     ))}
                   </div>
@@ -229,13 +239,13 @@ export default function Layout() {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setIsPrivate(false)}
-                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", !isPrivate ? "border-[#9146FF] text-[#9146FF] bg-[#9146FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
+                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", !isPrivate ? "border-[#5D00FF] text-[#5D00FF] bg-[#5D00FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
                   >
                     Public
                   </button>
                   <button 
                     onClick={() => setIsPrivate(true)}
-                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", isPrivate ? "border-[#9146FF] text-[#9146FF] bg-[#9146FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
+                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", isPrivate ? "border-[#5D00FF] text-[#5D00FF] bg-[#5D00FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
                   >
                     Private
                   </button>
@@ -247,13 +257,13 @@ export default function Layout() {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setIsCollaborative(false)}
-                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", !isCollaborative ? "border-[#9146FF] text-[#9146FF] bg-[#9146FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
+                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", !isCollaborative ? "border-[#5D00FF] text-[#5D00FF] bg-[#5D00FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
                   >
                     Only Me
                   </button>
                   <button 
                     onClick={() => setIsCollaborative(true)}
-                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", isCollaborative ? "border-[#9146FF] text-[#9146FF] bg-[#9146FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
+                    className={cn("flex-1 py-3 text-sm font-medium rounded-xl border transition-colors", isCollaborative ? "border-[#5D00FF] text-[#5D00FF] bg-[#5D00FF]/10" : "border-[#222222] text-[#666666] bg-[#111111] hover:border-[#E4E3E0]")}
                   >
                     Anyone Can Add
                   </button>
@@ -264,10 +274,10 @@ export default function Layout() {
                 <div className="bg-[#111111] border border-[#222222] p-4 rounded-xl flex justify-between items-center animate-in fade-in zoom-in-95">
                   <div>
                     <p className="text-[#666666] text-[10px] font-medium uppercase tracking-wider mb-1 font-mono">Share Code</p>
-                    <p className="text-lg font-bold tracking-wider text-[#9146FF] font-mono">{shareCode}</p>
+                    <p className="text-lg font-bold tracking-wider text-[#5D00FF] font-mono">{shareCode}</p>
                   </div>
-                  <button onClick={copyCode} className="p-2 border border-[#222222] rounded-lg hover:border-[#9146FF] transition-colors text-[#E4E3E0] bg-[#000000]">
-                    {copied ? <Check size={20} className="text-[#9146FF]" /> : <Copy size={20} />}
+                  <button onClick={copyCode} className="p-2 border border-[#222222] rounded-lg hover:border-[#5D00FF] transition-colors text-[#E4E3E0] bg-[#000000]">
+                    {copied ? <Check size={20} className="text-[#5D00FF]" /> : <Copy size={20} />}
                   </button>
                 </div>
               )}
@@ -275,7 +285,7 @@ export default function Layout() {
               <button 
                 onClick={handleCreate}
                 disabled={!roomName || isCreating}
-                className="w-full bg-[#9146FF] text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:bg-[#772ce8] transition-colors mt-4"
+                className="w-full bg-[#5D00FF] text-white font-bold py-4 rounded-xl disabled:opacity-50 hover:bg-[#4A00CC] transition-colors mt-4"
               >
                 {isCreating ? "Creating..." : "Create Room"}
               </button>
@@ -295,7 +305,7 @@ function NavItem({ to, icon, label, className }: { to: string; icon: React.React
       className={({ isActive }) =>
         cn(
           "flex flex-col md:flex-row items-center justify-center md:justify-start w-16 md:w-full h-full md:h-12 gap-1 md:gap-4 md:px-4 md:rounded-xl transition-colors",
-          isActive ? "text-[#9146FF] md:bg-[#111111]" : "text-[#666666] hover:text-[#E4E3E0] md:hover:bg-[#111111]",
+          isActive ? "text-[#5D00FF] md:bg-[#111111]" : "text-[#666666] hover:text-[#E4E3E0] md:hover:bg-[#111111]",
           className
         )
       }
